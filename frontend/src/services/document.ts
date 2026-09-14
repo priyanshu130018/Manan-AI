@@ -1,27 +1,26 @@
-import { api } from "./axios";
-import type { DocumentItem, ApiResponse } from "@/types";
-
-type RawDoc = Record<string, unknown>;
-
-function normalize(raw: RawDoc, index: number): DocumentItem {
-  return {
-    document_id: String(raw.document_id ?? raw.id ?? raw.doc_id ?? index),
-    filename: String(raw.filename ?? raw.file_name ?? raw.name ?? "Untitled.pdf"),
-    chunks: Number(raw.chunks ?? raw.chunk_count ?? raw.num_chunks ?? 0),
-    uploaded_at: (raw.uploaded_at ?? raw.created_at) as string | undefined,
-  };
-}
+import { api, API_BASE_URL } from "./axios";
+import type { DocumentItem, ApiResponse, StorageUsage } from "@/types";
 
 export async function listDocuments(): Promise<DocumentItem[]> {
-  const { data } = await api.get<ApiResponse<DocumentItem[]>>(
-    "/documents",
-  );
-
+  const { data } = await api.get<ApiResponse<DocumentItem[]>>("/doc");
   return data.data;
 }
 
-export async function deleteDocument(
-  documentId: string,
-): Promise<void> {
-  await api.delete(`/documents/${documentId}`);
+export async function getDocument(documentId: string): Promise<DocumentItem> {
+  const { data } = await api.get<ApiResponse<DocumentItem>>(`/doc/${documentId}`);
+  return data.data;
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  await api.delete(`/doc/${documentId}`);
+}
+
+export async function getStorageUsage(): Promise<StorageUsage> {
+  const { data } = await api.get<ApiResponse<StorageUsage>>("/doc/storage");
+  return data.data;
+}
+
+export function getDocumentFileUrl(documentId: string): string {
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  return `${base}/doc/${documentId}/file`;
 }

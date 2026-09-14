@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider } from "@/hooks/use-auth";
 import { SessionsProvider } from "@/hooks/use-sessions";
 import { AppShell } from "@/components/layout/app-shell";
 import { Toaster } from "@/components/ui/sonner";
@@ -80,16 +81,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Manan AI — RAG document assistant" },
+      { title: "Manan AI" },
       {
         name: "description",
         content:
-          "Manan is a retrieval-augmented AI assistant that answers questions from your own PDF library with cited sources.",
+          "Manan AI — Personal AI assistant and RAG document intelligence.",
       },
-      { property: "og:title", content: "Manan AI — RAG document assistant" },
+      { property: "og:title", content: "Manan AI" },
       {
         property: "og:description",
-        content: "Chat with your PDFs and get answers with citations.",
+        content: "Chat with your documents and explore knowledge with AI.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -135,13 +136,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionsProvider>
-        <AppShell>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </AppShell>
-        <Toaster position="top-right" richColors />
-      </SessionsProvider>
+      <AuthProvider>
+        <SessionsProvider>
+          <AppShell>
+            <Outlet />
+          </AppShell>
+          <Toaster closeButton position="top-right" richColors />
+        </SessionsProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

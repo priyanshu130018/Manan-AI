@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: manan_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: manan_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: manan_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: manan_ollama_init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./docker/ollama-init.sh:/ollama-init.sh:ro
+    entrypoint: ["/bin/sh", "/ollama-init.sh"]
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: manan_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/manan_ai
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-manan-production-jwt-secret}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.6-flash}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      CHROMA_PERSIST_DIRECTORY: /app/data/chroma
+      UPLOAD_DIR: /app/data/documents
+      CHROMA_COLLECTION: documents
+    volumes:
+      - backend_data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: manan_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+
+volumes:
+  postgres_data:
+  ollama_data:
+  backend_data:

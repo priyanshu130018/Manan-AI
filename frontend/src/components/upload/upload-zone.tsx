@@ -43,9 +43,9 @@ export function UploadZone({
         <UploadCloud className="h-7 w-7" />
       </div>
       <div className="space-y-1">
-        <h2 className="text-base font-semibold">Drop your PDF here</h2>
+        <h2 className="text-base font-semibold">Drop your study materials here</h2>
         <p className="text-sm text-muted-foreground">
-          Manan indexes your PDF into searchable chunks. PDF only, up to 50&nbsp;MB.
+          Supports PDF (with OCR), CSV, JSON, SQL, DOCX, PPTX, TXT, and Images. Up to 50 MB per file.
         </p>
       </div>
       <Button variant="outline" className="rounded-xl" onClick={() => inputRef.current?.click()}>
@@ -54,7 +54,7 @@ export function UploadZone({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept=".pdf,.docx,.pptx,.txt,.md,.csv,.json,.sql,.png,.jpg,.jpeg,.webp"
         multiple
         hidden
         onChange={(e) => {

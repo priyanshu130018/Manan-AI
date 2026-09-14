@@ -9,7 +9,7 @@ export async function uploadDocument(
   form.append("file", file);
 
   const { data } = await api.post<ApiResponse<UploadResult>>(
-    "/upload",
+    "/doc/upload",
     form,
     {
       headers: {

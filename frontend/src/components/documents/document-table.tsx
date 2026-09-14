@@ -20,11 +20,13 @@ type SortKey = "filename" | "chunks";
 export function DocumentTable({
   documents,
   loading,
+  onSelect,
   onDelete,
   emptyAction,
 }: {
   documents: DocumentItem[];
   loading: boolean;
+  onSelect?: (doc: DocumentItem) => void;
   onDelete: (doc: DocumentItem) => void;
   emptyAction?: React.ReactNode;
 }) {
@@ -32,13 +34,24 @@ export function DocumentTable({
   const [sortKey, setSortKey] = useState<SortKey>("filename");
   const [asc, setAsc] = useState(true);
 
+  const formatSize = (bytes: number) => {
+    if (!bytes) return "0 B";
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const rows = useMemo(() => {
-    const filtered = documents.filter((doc) =>
-      doc.filename.toLowerCase().includes(query.trim().toLowerCase()),
-    );
+    const filtered = documents.filter((doc) => {
+      const name = doc.original_filename || doc.filename || "";
+      return name.toLowerCase().includes(query.trim().toLowerCase());
+    });
     return [...filtered].sort((a, b) => {
+      const nameA = a.original_filename || a.filename || "";
+      const nameB = b.original_filename || b.filename || "";
+      const chunksA = a.chunk_count ?? a.chunks ?? 0;
+      const chunksB = b.chunk_count ?? b.chunks ?? 0;
       const result =
-        sortKey === "chunks" ? a.chunks - b.chunks : a.filename.localeCompare(b.filename);
+        sortKey === "chunks" ? chunksA - chunksB : nameA.localeCompare(nameB);
       return asc ? result : -result;
     });
   }, [documents, query, sortKey, asc]);
@@ -79,7 +92,7 @@ export function DocumentTable({
         <EmptyState
           icon={FileText}
           title="No documents yet"
-          description="Upload a PDF and Manan will chunk, embed, and index it so you can chat with it."
+          description="Upload a document (PDF, OCR scan, CSV, JSON, SQL, DOCX, PPTX, TXT) and Manan will index it for Chat & Study."
           action={emptyAction}
         />
       ) : rows.length === 0 ? (
@@ -98,9 +111,12 @@ export function DocumentTable({
                     className="flex items-center gap-1.5 font-medium"
                     onClick={() => toggleSort("filename")}
                   >
-                    Filename <ArrowUpDown className="h-3.5 w-3.5" />
+                    Document <ArrowUpDown className="h-3.5 w-3.5" />
                   </button>
                 </TableHead>
+                <TableHead>Format</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Pages</TableHead>
                 <TableHead>
                   <button
                     className="flex items-center gap-1.5 font-medium"
@@ -109,40 +125,65 @@ export function DocumentTable({
                     Chunks <ArrowUpDown className="h-3.5 w-3.5" />
                   </button>
                 </TableHead>
-                <TableHead className="hidden md:table-cell">Document ID</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((doc) => (
-                <TableRow key={doc.document_id} className="transition-colors">
-                  <TableCell className="max-w-[240px]">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <FileText className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="truncate font-medium">{doc.filename}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="rounded-lg">
-                      {doc.chunks}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                    {doc.document_id}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label={`Delete ${doc.filename}`}
-                      className="rounded-lg text-muted-foreground hover:text-destructive"
-                      onClick={() => onDelete(doc)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {rows.map((doc) => {
+                const name = doc.original_filename || doc.filename || "Untitled";
+                const chunks = doc.chunk_count ?? doc.chunks ?? 0;
+                return (
+                  <TableRow
+                    key={doc.document_id}
+                    className="cursor-pointer transition-colors hover:bg-muted/40"
+                    onClick={() => onSelect?.(doc)}
+                  >
+                    <TableCell className="max-w-[260px]">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="truncate font-medium hover:underline">{name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="rounded-md uppercase text-[10px]">
+                        {doc.source_type || "pdf"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatSize(doc.size_bytes)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {doc.page_count ?? 0}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="rounded-lg text-xs">
+                        {chunks}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {doc.status || "ready"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={`Delete ${name}`}
+                        className="rounded-lg text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(doc);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

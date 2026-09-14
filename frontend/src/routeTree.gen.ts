@@ -11,10 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRouteImport } from './routes/chat'
-import { Route as DocumentsRouteImport } from './routes/documents'
+import { Route as DocRouteImport } from './routes/doc'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as UploadRouteImport } from './routes/upload'
+import { Route as ChatChatNumberRouteImport } from './routes/chat.$chatNumber'
+import { Route as DocIndexRouteImport } from './routes/doc.index'
+import { Route as DocUploadRouteImport } from './routes/doc.upload'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -26,9 +31,19 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DocumentsRoute = DocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
+const DocRoute = DocRouteImport.update({
+  id: '/doc',
+  path: '/doc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -36,65 +51,121 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const UploadRoute = UploadRouteImport.update({
+const ChatChatNumberRoute = ChatChatNumberRouteImport.update({
+  id: '/$chatNumber',
+  path: '/$chatNumber',
+  getParentRoute: () => ChatRoute,
+} as any)
+const DocIndexRoute = DocIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocRoute,
+} as any)
+const DocUploadRoute = DocUploadRouteImport.update({
   id: '/upload',
   path: '/upload',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => DocRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
-  '/documents': typeof DocumentsRoute
+  '/chat': typeof ChatRouteWithChildren
+  '/doc': typeof DocRouteWithChildren
+  '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/upload': typeof UploadRoute
+  '/chat/$chatNumber': typeof ChatChatNumberRoute
+  '/doc/upload': typeof DocUploadRoute
+  '/doc/': typeof DocIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
-  '/documents': typeof DocumentsRoute
+  '/chat': typeof ChatRouteWithChildren
+  '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/upload': typeof UploadRoute
+  '/chat/$chatNumber': typeof ChatChatNumberRoute
+  '/doc/upload': typeof DocUploadRoute
+  '/doc': typeof DocIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
-  '/documents': typeof DocumentsRoute
+  '/chat': typeof ChatRouteWithChildren
+  '/doc': typeof DocRouteWithChildren
+  '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
+  '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/upload': typeof UploadRoute
+  '/chat/$chatNumber': typeof ChatChatNumberRoute
+  '/doc/upload': typeof DocUploadRoute
+  '/doc/': typeof DocIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/chat' | '/documents' | '/settings' | '/sitemap.xml' | '/upload'
+    | '/'
+    | '/chat'
+    | '/doc'
+    | '/login'
+    | '/profile'
+    | '/settings'
+    | '/signup'
+    | '/sitemap.xml'
+    | '/chat/$chatNumber'
+    | '/doc/upload'
+    | '/doc/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/documents' | '/settings' | '/sitemap.xml' | '/upload'
+  to:
+    | '/'
+    | '/chat'
+    | '/login'
+    | '/profile'
+    | '/settings'
+    | '/signup'
+    | '/sitemap.xml'
+    | '/chat/$chatNumber'
+    | '/doc/upload'
+    | '/doc'
   id:
     | '__root__'
     | '/'
     | '/chat'
-    | '/documents'
+    | '/doc'
+    | '/login'
+    | '/profile'
     | '/settings'
+    | '/signup'
     | '/sitemap.xml'
-    | '/upload'
+    | '/chat/$chatNumber'
+    | '/doc/upload'
+    | '/doc/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ChatRoute: typeof ChatRoute
-  DocumentsRoute: typeof DocumentsRoute
+  ChatRoute: typeof ChatRouteWithChildren
+  DocRoute: typeof DocRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRoute
+  SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  UploadRoute: typeof UploadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -113,11 +184,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/documents': {
-      id: '/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof DocumentsRouteImport
+    '/doc': {
+      id: '/doc'
+      path: '/doc'
+      fullPath: '/doc'
+      preLoaderRoute: typeof DocRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -127,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -134,23 +226,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/upload': {
-      id: '/upload'
+    '/chat/$chatNumber': {
+      id: '/chat/$chatNumber'
+      path: '/$chatNumber'
+      fullPath: '/chat/$chatNumber'
+      preLoaderRoute: typeof ChatChatNumberRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/doc/': {
+      id: '/doc/'
+      path: '/'
+      fullPath: '/doc/'
+      preLoaderRoute: typeof DocIndexRouteImport
+      parentRoute: typeof DocRoute
+    }
+    '/doc/upload': {
+      id: '/doc/upload'
       path: '/upload'
-      fullPath: '/upload'
-      preLoaderRoute: typeof UploadRouteImport
-      parentRoute: typeof rootRouteImport
+      fullPath: '/doc/upload'
+      preLoaderRoute: typeof DocUploadRouteImport
+      parentRoute: typeof DocRoute
     }
   }
 }
 
+interface ChatRouteChildren {
+  ChatChatNumberRoute: typeof ChatChatNumberRoute
+}
+
+const ChatRouteChildren: ChatRouteChildren = {
+  ChatChatNumberRoute: ChatChatNumberRoute,
+}
+
+const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
+
+interface DocRouteChildren {
+  DocUploadRoute: typeof DocUploadRoute
+  DocIndexRoute: typeof DocIndexRoute
+}
+
+const DocRouteChildren: DocRouteChildren = {
+  DocUploadRoute: DocUploadRoute,
+  DocIndexRoute: DocIndexRoute,
+}
+
+const DocRouteWithChildren = DocRoute._addFileChildren(DocRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ChatRoute: ChatRoute,
-  DocumentsRoute: DocumentsRoute,
+  ChatRoute: ChatRouteWithChildren,
+  DocRoute: DocRouteWithChildren,
+  LoginRoute: LoginRoute,
+  ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRoute,
+  SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  UploadRoute: UploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

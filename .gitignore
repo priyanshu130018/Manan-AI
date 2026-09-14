@@ -1,11 +1,21 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+env/
+venv/
+.venv/
+ENV/
 build/
-dist/
 develop-eggs/
+dist/
 downloads/
 eggs/
 .eggs/
@@ -13,63 +23,60 @@ lib/
 lib64/
 parts/
 sdist/
-share/python-wheels/
+var/
 wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-.venv/
-venv/
-env/
-ENV/
-
-.env
-.env.*
-!.env.example
-
-*.log
-logs/
-
+# Testing & Coverage
 .pytest_cache/
 .coverage
 .coverage.*
 htmlcov/
-.mypy_cache/
-.ruff_cache/
+.tox/
+.nox/
 
-.vscode/
-.idea/
+# Node & Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.output/
+.nitro/
+.tanstack/
+.wrangler/
 
-.DS_Store
-Thumbs.db
+# Databases & Vector Stores (Never commit user data or vectors)
+*.db
+*.sqlite
+*.sqlite3
+data/
+chroma/
+chroma_v1/
+chroma_v2/
+documents/
+documents_v1/
+documents_v2/
+uploads/
+uploads_v1/
+uploads_v2/
+v1/backend/data/
+v2/backend/data/
+v1/data/
+v2/data/
 
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-frontend/pnpm-debug.log*
-
-.cache/
-
-backend/chroma/
-backend/chroma_db/
-backend/data/
-backend/storage/
-backend/vector_store/
-backend/uploads/
-
-.ipynb_checkpoints/
-
-coverage/
-*.coverage
-
+# Logs & Temp
+*.log
+logs/
 *.tmp
 *.temp
-*.bak
-*.swp
 
-*.sqlite3
-*.db
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
