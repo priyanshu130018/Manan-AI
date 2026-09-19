@@ -19,8 +19,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -56,7 +56,7 @@ data/
 chroma/
 chroma_v1/
 chroma_v2/
-documents/
+/documents/
 documents_v1/
 documents_v2/
 uploads/
