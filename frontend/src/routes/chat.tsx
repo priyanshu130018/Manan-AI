@@ -17,8 +17,3 @@ export const Route = createFileRoute("/chat")({
 function ChatRouteComponent() {
   return <ChatPage />;
 }
-
-
-
-
-

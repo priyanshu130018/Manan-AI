@@ -30,12 +30,14 @@ export function ChatInput({
   disabled?: boolean;
   onDisabledClick?: () => void;
   currentModel?: string;
-  onModelChange?: (modelValue: string, provider: "gemini" | "qwen") => void;
+  onModelChange?: (modelValue: string, provider: "gemini" | "ollama") => void;
   draftText?: string;
   onDraftTextChange?: (text: string) => void;
 }) {
   const [value, setValue] = useState(draftText || "");
-  const [internalModel, setInternalModel] = useState<string>(() => externalModel || readSettings().model);
+  const [internalModel, setInternalModel] = useState<string>(
+    () => externalModel || readSettings().model,
+  );
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -47,7 +49,7 @@ export function ChatInput({
 
   const activeModel = externalModel || internalModel;
 
-  const handleModelChange = (modelValue: string, provider: "gemini" | "qwen") => {
+  const handleModelChange = (modelValue: string, provider: "gemini" | "ollama") => {
     setInternalModel(modelValue);
     if (externalOnModelChange) {
       externalOnModelChange(modelValue, provider);
@@ -56,7 +58,6 @@ export function ChatInput({
       writeSettings({ ...settings, model: modelValue, provider });
     }
   };
-
 
   useEffect(() => {
     if (!loading && !disabled) ref.current?.focus();
@@ -171,17 +172,16 @@ export function ChatInput({
               }}
               onKeyDown={onKeyDown}
               readOnly={disabled}
-              placeholder={disabled ? "Sign in to start chatting" : (placeholder ?? "Ask anything…")}
+              placeholder={
+                disabled ? "Sign in to start chatting" : (placeholder ?? "Ask anything…")
+              }
               aria-label="Message Manan"
               className={`max-h-[200px] min-h-[44px] resize-none border-0 bg-transparent px-2 py-2.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent ${
                 disabled ? "cursor-pointer select-none" : ""
               }`}
             />
             <div className="flex items-center gap-1 shrink-0 pb-1">
-              <ModelSelector
-                currentModel={activeModel}
-                onModelChange={handleModelChange}
-              />
+              <ModelSelector currentModel={activeModel} onModelChange={handleModelChange} />
               <Button
                 size="icon"
                 onClick={(e) => {
@@ -203,7 +203,6 @@ export function ChatInput({
                 )}
               </Button>
             </div>
-
           </div>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             Manan AI can make mistakes. Check important information.

@@ -5,7 +5,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { MananLogo } from "@/components/common/manan-logo";
 import { useAuth } from "@/hooks/use-auth";
 import { API_BASE_URL } from "@/services/axios";
@@ -75,9 +82,10 @@ function LoginPage() {
       await login({ email: email.trim(), password });
       toast.success("Welcome back!");
       const target = getSafeDestination();
-      navigate({ to: target as any });
-    } catch (err: any) {
-      toast.error(err?.friendlyMessage || "Login failed. Please check your credentials.");
+      navigate({ to: target as never });
+    } catch (err: unknown) {
+      const errObj = err as { friendlyMessage?: string } | null;
+      toast.error(errObj?.friendlyMessage || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }

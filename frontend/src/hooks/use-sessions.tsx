@@ -62,7 +62,9 @@ const SessionsContext = createContext<SessionsContextValue | null>(null);
 export function SessionsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [activeSession, setActiveSession] = useState<ChatSession | null>(() => createDraftSession(false));
+  const [activeSession, setActiveSession] = useState<ChatSession | null>(() =>
+    createDraftSession(false),
+  );
   const [activeId, setActiveId] = useState<string | null>(activeSession?.id ?? null);
   const [hydrated, setHydrated] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -115,94 +117,106 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const selectSession = useCallback(async (id: string) => {
-    if (!user) return;
-    try {
-      const detail = await getSessionApi(id);
-      const chatSess: ChatSession = {
-        id: detail.id,
-        title: detail.title,
-        mode: detail.mode,
-        selected_document_ids: detail.selected_document_ids,
-        chat_number: detail.chat_number,
-        isTemporary: false,
-        messages: (detail.messages || []).map((m) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          citations: m.citations,
-          createdAt: m.created_at,
-        })),
-        createdAt: detail.created_at,
-        updatedAt: detail.updated_at,
-      };
-      setActiveSession(chatSess);
-      setActiveId(id);
-    } catch {
-      setActiveId(id);
-    }
-  }, [user]);
+  const selectSession = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      try {
+        const detail = await getSessionApi(id);
+        const chatSess: ChatSession = {
+          id: detail.id,
+          title: detail.title,
+          mode: detail.mode,
+          selected_document_ids: detail.selected_document_ids,
+          chat_number: detail.chat_number,
+          isTemporary: false,
+          messages: (detail.messages || []).map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            citations: m.citations,
+            createdAt: m.created_at,
+          })),
+          createdAt: detail.created_at,
+          updatedAt: detail.updated_at,
+        };
+        setActiveSession(chatSess);
+        setActiveId(id);
+      } catch {
+        setActiveId(id);
+      }
+    },
+    [user],
+  );
 
-  const loadChatByNumber = useCallback(async (chatNumber: string): Promise<ChatSession | null> => {
-    try {
-      let detail: SessionDetail;
-      if (user) {
-        try {
-          detail = await getSessionByChatNumberApi(chatNumber);
-        } catch {
+  const loadChatByNumber = useCallback(
+    async (chatNumber: string): Promise<ChatSession | null> => {
+      try {
+        let detail: SessionDetail;
+        if (user) {
+          try {
+            detail = await getSessionByChatNumberApi(chatNumber);
+          } catch {
+            detail = await getSharedChat(chatNumber);
+          }
+        } else {
           detail = await getSharedChat(chatNumber);
         }
-      } else {
-        detail = await getSharedChat(chatNumber);
-      }
-      const chatSess: ChatSession = {
-        id: detail.id,
-        title: detail.title,
-        mode: detail.mode,
-        selected_document_ids: detail.selected_document_ids,
-        chat_number: detail.chat_number,
-        isTemporary: false,
-        messages: (detail.messages || []).map((m) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          citations: m.citations,
-          createdAt: m.created_at,
-        })),
-        createdAt: detail.created_at,
-        updatedAt: detail.updated_at,
-      };
-      setActiveSession(chatSess);
-      setActiveId(detail.id);
+        const chatSess: ChatSession = {
+          id: detail.id,
+          title: detail.title,
+          mode: detail.mode,
+          selected_document_ids: detail.selected_document_ids,
+          chat_number: detail.chat_number,
+          isTemporary: false,
+          messages: (detail.messages || []).map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            citations: m.citations,
+            createdAt: m.created_at,
+          })),
+          createdAt: detail.created_at,
+          updatedAt: detail.updated_at,
+        };
+        setActiveSession(chatSess);
+        setActiveId(detail.id);
 
-      if (user) {
-        setSessions((prev) => {
-          if (prev.some((s) => s.id === detail.id)) return prev;
-          return [
-            {
-              id: detail.id,
-              title: detail.title,
-              mode: detail.mode,
-              selected_document_ids: detail.selected_document_ids,
-              chat_number: detail.chat_number,
-              created_at: detail.created_at,
-              updated_at: detail.updated_at,
-            },
-            ...prev,
-          ];
-        });
-      }
+        if (user) {
+          setSessions((prev) => {
+            if (prev.some((s) => s.id === detail.id)) return prev;
+            return [
+              {
+                id: detail.id,
+                title: detail.title,
+                mode: detail.mode,
+                selected_document_ids: detail.selected_document_ids,
+                chat_number: detail.chat_number,
+                created_at: detail.created_at,
+                updated_at: detail.updated_at,
+              },
+              ...prev,
+            ];
+          });
+        }
 
-      return chatSess;
-    } catch (err) {
-      console.error("Failed to load chat by number:", err);
-      return null;
-    }
-  }, [user]);
+        return chatSess;
+      } catch (err) {
+        console.error("Failed to load chat by number:", err);
+        return null;
+      }
+    },
+    [user],
+  );
 
   const refreshActiveSession = useCallback(async () => {
     const idToRefresh = activeId || activeSession?.id;
-    if (!idToRefresh || !user || idToRefresh.startsWith("draft-") || idToRefresh.startsWith("temp-")) return;
+    if (
+      !idToRefresh ||
+      !user ||
+      idToRefresh.startsWith("draft-") ||
+      idToRefresh.startsWith("temp-")
+    )
+      return;
     try {
       await selectSession(idToRefresh);
     } catch (err) {
@@ -286,16 +300,19 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
-  const renameSession = useCallback(async (sessionId: string, title: string) => {
-    if (!user) return;
-    try {
-      await updateSessionApi(sessionId, { title });
-    } catch {
-      // Ignore
-    }
-    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
-    setActiveSession((cur) => (cur?.id === sessionId ? { ...cur, title } : cur));
-  }, [user]);
+  const renameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      if (!user) return;
+      try {
+        await updateSessionApi(sessionId, { title });
+      } catch {
+        // Ignore
+      }
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
+      setActiveSession((cur) => (cur?.id === sessionId ? { ...cur, title } : cur));
+    },
+    [user],
+  );
 
   const value = useMemo<SessionsContextValue>(
     () => ({

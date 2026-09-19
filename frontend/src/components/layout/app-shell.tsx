@@ -85,10 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           collapsed ? "w-[68px]" : "w-72",
         )}
       >
-        <SidebarContentPanel
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapsed}
-        />
+        <SidebarContentPanel collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -106,12 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <SidebarContentPanel onNavigate={() => setOpen(false)} />
               </SheetContent>
             </Sheet>
-            <MananLogo
-              size="sm"
-              showWordmark
-              ariaLabel="Manan AI home"
-              className="min-w-0"
-            />
+            <MananLogo size="sm" showWordmark ariaLabel="Manan AI home" className="min-w-0" />
           </div>
 
           {!user && (

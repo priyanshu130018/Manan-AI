@@ -41,21 +41,14 @@ export const Route = createFileRoute("/doc/")({
       { title: "Documents — Manan AI" },
       {
         name: "description",
-        content:
-          "Browse, inspect, and manage documents indexed in Manan's RAG knowledge base.",
+        content: "Browse, inspect, and manage documents indexed in Manan's RAG knowledge base.",
       },
     ],
   }),
   component: DocumentsPage,
 });
 
-type UploadStage =
-  | "uploading"
-  | "extracting"
-  | "chunking"
-  | "indexing"
-  | "success"
-  | "error";
+type UploadStage = "uploading" | "extracting" | "chunking" | "indexing" | "success" | "error";
 
 interface UploadRow extends UploadResult {
   status: UploadStage;
@@ -124,7 +117,8 @@ function DocumentsPage() {
       const ext = "." + file.name.split(".").pop()?.toLowerCase();
       if (!validExtensions.includes(ext)) {
         toast.error(`Unsupported format: ${file.name}`, {
-          description: "Supported formats: PDF (with OCR), CSV, JSON, SQL, DOCX, PPTX, TXT, Images.",
+          description:
+            "Supported formats: PDF (with OCR), CSV, JSON, SQL, DOCX, PPTX, TXT, Images.",
         });
         continue;
       }
@@ -227,7 +221,9 @@ function DocumentsPage() {
       await deleteDocument(doc.document_id);
       setDocuments((prev) => prev.filter((d) => d.document_id !== doc.document_id));
       toast.success(`${doc.original_filename || doc.filename} deleted`);
-      void getStorageUsage().then(setStorage).catch(() => {});
+      void getStorageUsage()
+        .then(setStorage)
+        .catch(() => {});
     } catch (error) {
       toast.error("Delete failed", { description: toFriendlyError(error) });
     }
@@ -301,7 +297,8 @@ function DocumentsPage() {
           <DialogHeader>
             <DialogTitle>Upload Documents</DialogTitle>
             <DialogDescription>
-              Add study materials for RAG retrieval. Files are chunked and embedded in PostgreSQL pgvector.
+              Add study materials for RAG retrieval. Files are chunked and embedded in PostgreSQL
+              pgvector.
             </DialogDescription>
           </DialogHeader>
 
@@ -347,9 +344,7 @@ function DocumentsPage() {
                               {row.stageText}: {row.message}
                             </span>
                           )}
-                          {row.status !== "success" &&
-                            row.status !== "error" &&
-                            row.stageText}
+                          {row.status !== "success" && row.status !== "error" && row.stageText}
                         </p>
                       </div>
                       {row.status === "success" && (

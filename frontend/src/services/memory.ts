@@ -15,7 +15,10 @@ export async function listMemories(limit: number = 50): Promise<MemoryItem[]> {
   return data.data;
 }
 
-export async function createMemory(content: string, sourceSessionId?: string | null): Promise<MemoryItem> {
+export async function createMemory(
+  content: string,
+  sourceSessionId?: string | null,
+): Promise<MemoryItem> {
   const { data } = await api.post<ApiResponse<MemoryItem>>("/memories", {
     content,
     source_session_id: sourceSessionId,

@@ -3,7 +3,6 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   FileText,
   Settings,
-
   Plus,
   Trash2,
   Sparkle,
@@ -68,15 +67,8 @@ export function SidebarContentPanel({
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { user } = useAuth();
-  const {
-    sessions,
-    activeId,
-    selectSession,
-    newChat,
-    deleteSession,
-    renameSession,
-    deletingId,
-  } = useSessions();
+  const { sessions, activeId, selectSession, newChat, deleteSession, renameSession, deletingId } =
+    useSessions();
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
@@ -135,7 +127,6 @@ export function SidebarContentPanel({
     navigate({ to: "/" });
     onNavigate?.();
   };
-
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -336,7 +327,10 @@ export function SidebarContentPanel({
                         <DropdownMenuContent align="end" className="w-36">
                           <DropdownMenuItem
                             onClick={() => {
-                              setRenameTarget({ id: session.id, title: session.title || "New conversation" });
+                              setRenameTarget({
+                                id: session.id,
+                                title: session.title || "New conversation",
+                              });
                               setRenameTitle(session.title || "");
                             }}
                           >
@@ -346,7 +340,10 @@ export function SidebarContentPanel({
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() =>
-                              setDeleteTarget({ id: session.id, title: session.title || "New conversation" })
+                              setDeleteTarget({
+                                id: session.id,
+                                title: session.title || "New conversation",
+                              })
                             }
                           >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />
@@ -380,7 +377,12 @@ export function SidebarContentPanel({
         )}
 
         {/* Footer Navigation (Profile + Settings) */}
-        <div className={cn("w-full shrink-0 border-t border-sidebar-border pt-2 space-y-1", collapsed && "flex flex-col items-center")}>
+        <div
+          className={cn(
+            "w-full shrink-0 border-t border-sidebar-border pt-2 space-y-1",
+            collapsed && "flex flex-col items-center",
+          )}
+        >
           {/* Profile (Only for Authenticated Users) */}
           {user && (
             <>
@@ -459,7 +461,10 @@ export function SidebarContentPanel({
         </div>
 
         {/* Rename Dialog */}
-        <Dialog open={Boolean(renameTarget)} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <Dialog
+          open={Boolean(renameTarget)}
+          onOpenChange={(open) => !open && setRenameTarget(null)}
+        >
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>
               <DialogTitle>Rename Chat</DialogTitle>
@@ -491,9 +496,8 @@ export function SidebarContentPanel({
             <AlertDialogHeader>
               <AlertDialogTitle>Delete chat?</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete{" "}
-                <strong>&ldquo;{deleteTarget?.title}&rdquo;</strong>? This will remove this
-                conversation history.
+                Are you sure you want to delete <strong>&ldquo;{deleteTarget?.title}&rdquo;</strong>
+                ? This will remove this conversation history.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

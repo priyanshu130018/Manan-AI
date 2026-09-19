@@ -50,8 +50,7 @@ export function DocumentTable({
       const nameB = b.original_filename || b.filename || "";
       const chunksA = a.chunk_count ?? a.chunks ?? 0;
       const chunksB = b.chunk_count ?? b.chunks ?? 0;
-      const result =
-        sortKey === "chunks" ? chunksA - chunksB : nameA.localeCompare(nameB);
+      const result = sortKey === "chunks" ? chunksA - chunksB : nameA.localeCompare(nameB);
       return asc ? result : -result;
     });
   }, [documents, query, sortKey, asc]);

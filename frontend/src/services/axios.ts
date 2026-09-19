@@ -11,7 +11,7 @@ export const API_BASE_URL: string = apiBaseUrl as string;
 export interface ModelOption {
   value: string;
   label: string;
-  provider: "gemini" | "qwen";
+  provider: "gemini" | "ollama";
 }
 
 export const SETTINGS_KEY = "manan.settings";
@@ -23,7 +23,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 export const MODEL_OPTIONS: ModelOption[] = [
   { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash", provider: "gemini" },
-  { value: "qwen3.8-27b", label: "Qwen 3.8 27B", provider: "qwen" },
+  {
+    value: "gpt-oss:120b",
+    label: "GPT-OSS 120B (Ollama Cloud)",
+    provider: "ollama",
+  },
 ];
 
 export function readSettings(): AppSettings {
@@ -35,8 +39,16 @@ export function readSettings(): AppSettings {
     let model = parsed.model;
     let opt = MODEL_OPTIONS.find((m) => m.value === model);
     if (!opt) {
-      if (model && (model.toLowerCase().includes("qwen") || model.toLowerCase().includes("llama"))) {
-        model = "qwen3.8-27b";
+      if (
+        model &&
+        (model.toLowerCase().includes("gpt") ||
+          model.toLowerCase().includes("oss") ||
+          model.toLowerCase().includes("gemma") ||
+          model.toLowerCase().includes("qwen") ||
+          model.toLowerCase().includes("llama") ||
+          model.toLowerCase().includes("cloud"))
+      ) {
+        model = "gpt-oss:120b";
       } else {
         model = DEFAULT_SETTINGS.model;
       }
@@ -66,7 +78,12 @@ export const api: AxiosInstance = axios.create({
 });
 
 export function toFriendlyError(error: unknown): string {
-  const err = error as AxiosError<{ detail?: string; message?: string; retry_after?: number; error_code?: string }>;
+  const err = error as AxiosError<{
+    detail?: string;
+    message?: string;
+    retry_after?: number;
+    error_code?: string;
+  }>;
   if (err?.code === "ECONNABORTED") return "The request timed out. Please try again.";
   if (err?.response) {
     const data = err.response.data;
@@ -93,7 +110,8 @@ export function toFriendlyError(error: unknown): string {
     }
     return msg || `Request failed with status ${err.response.status}.`;
   }
-  if (err?.request) return `Cannot reach backend server at ${API_BASE_URL}. Ensure FastAPI is running.`;
+  if (err?.request)
+    return `Cannot reach backend server at ${API_BASE_URL}. Ensure FastAPI is running.`;
   return err?.message || "Something went wrong.";
 }
 

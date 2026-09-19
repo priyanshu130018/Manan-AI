@@ -84,8 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Manan AI" },
       {
         name: "description",
-        content:
-          "Manan AI — Personal AI assistant and RAG document intelligence.",
+        content: "Manan AI — Personal AI assistant and RAG document intelligence.",
       },
       { property: "og:title", content: "Manan AI" },
       {

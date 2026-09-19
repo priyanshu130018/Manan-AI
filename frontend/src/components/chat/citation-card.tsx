@@ -13,7 +13,13 @@ function getSourceIcon(sourceType?: string) {
   if (type.includes("sql") || type.includes("db") || type.includes("database")) {
     return Database;
   }
-  if (type.includes("png") || type.includes("jpg") || type.includes("image") || type.includes("jpeg") || type.includes("webp")) {
+  if (
+    type.includes("png") ||
+    type.includes("jpg") ||
+    type.includes("image") ||
+    type.includes("jpeg") ||
+    type.includes("webp")
+  ) {
     return Image;
   }
   return FileText;
@@ -49,18 +55,27 @@ export function CompactSourcesDisplay({ citations }: { citations: Citation[] }) 
           onClick={() => setIsOpen((prev) => !prev)}
           className={cn(
             "inline-flex items-center gap-2 rounded-xl border border-border/80 bg-muted/40 px-3 py-1.5 text-xs text-foreground transition-all hover:bg-muted/80 hover:border-primary/40 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20",
-            isOpen && "border-primary/50 bg-primary/10 text-primary"
+            isOpen && "border-primary/50 bg-primary/10 text-primary",
           )}
           aria-expanded={isOpen}
           aria-label={`View ${citations.length} sources`}
         >
           <FileText className="h-3.5 w-3.5 text-primary" />
           <span className="font-semibold">Sources ({citations.length})</span>
-          <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
+          <ChevronDown
+            className={cn(
+              "h-3 w-3 text-muted-foreground transition-transform duration-200",
+              isOpen && "rotate-180",
+            )}
+          />
         </button>
       </HoverCardTrigger>
 
-      <HoverCardContent align="start" side="top" className="w-80 sm:w-96 max-h-80 overflow-y-auto space-y-2.5 rounded-2xl p-4 shadow-xl border-border bg-popover text-popover-foreground">
+      <HoverCardContent
+        align="start"
+        side="top"
+        className="w-80 sm:w-96 max-h-80 overflow-y-auto space-y-2.5 rounded-2xl p-4 shadow-xl border-border bg-popover text-popover-foreground"
+      >
         <div className="flex items-center justify-between border-b border-border/50 pb-2">
           <span className="text-xs font-bold text-foreground">
             Sources & References ({citations.length})

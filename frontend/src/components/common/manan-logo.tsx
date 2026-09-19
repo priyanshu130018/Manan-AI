@@ -97,9 +97,7 @@ export const MananLogo = forwardRef<HTMLAnchorElement & HTMLDivElement, MananLog
               {wordmarkText}
             </p>
             {subtitle && (
-              <p className="truncate text-xs text-muted-foreground select-none">
-                {subtitle}
-              </p>
+              <p className="truncate text-xs text-muted-foreground select-none">{subtitle}</p>
             )}
           </div>
         )}
@@ -117,7 +115,7 @@ export const MananLogo = forwardRef<HTMLAnchorElement & HTMLDivElement, MananLog
       return (
         <Link
           to="/"
-          ref={ref as any}
+          ref={ref as React.ForwardedRef<HTMLAnchorElement>}
           aria-label={ariaLabel}
           onClick={onClick}
           className={baseClasses}
@@ -128,7 +126,7 @@ export const MananLogo = forwardRef<HTMLAnchorElement & HTMLDivElement, MananLog
     }
 
     return (
-      <div ref={ref as any} className={baseClasses}>
+      <div ref={ref as React.ForwardedRef<HTMLDivElement>} className={baseClasses}>
         {content}
       </div>
     );

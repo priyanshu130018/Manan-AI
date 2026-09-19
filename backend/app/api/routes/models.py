@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict
 from fastapi import APIRouter
 from app.core.config import get_settings
 from app.core.logging import LoggerFactory
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/llm", tags=["LLM Models"])
 
 @router.get("/models", response_model=ApiResponse[Dict[str, Any]])
 async def list_available_models():
-    """Fetch available LLM models for Gemini and Qwen."""
+    """Fetch available LLM models for Gemini and Ollama Cloud."""
     settings = get_settings()
 
     gemini_models = [
@@ -21,26 +21,36 @@ async def list_available_models():
         }
     ]
 
-    qwen_models = [
+    ollama_model_val = settings.ollama_model or "gpt-oss:120b"
+    if "gpt-oss:120b" in ollama_model_val.lower():
+        ollama_label = "GPT-OSS 120B (Ollama Cloud)"
+    elif "gpt-oss:20b" in ollama_model_val.lower():
+        ollama_label = "GPT-OSS 20B (Ollama Cloud)"
+    elif "gemma4" in ollama_model_val.lower():
+        ollama_label = "Gemma 4 31B (Ollama Cloud)"
+    elif "qwen3-coder" in ollama_model_val.lower():
+        ollama_label = "Qwen 3 Coder 480B (Ollama Cloud)"
+    else:
+        ollama_label = f"{ollama_model_val} (Ollama Cloud)"
+
+    ollama_models = [
         {
-            "value": settings.qwen_model or "qwen3.8-27b",
-            "label": "Qwen 3.8 27B",
-            "provider": "qwen",
+            "value": ollama_model_val,
+            "label": ollama_label,
+            "provider": "ollama",
         }
     ]
 
     gemini_available = bool(settings.google_api_key and settings.google_api_key.strip())
-    qwen_available = bool(
-        settings.qwen_api_key
-        and settings.qwen_api_key.strip()
-        and settings.qwen_base_url
-        and settings.qwen_base_url.strip()
-    )
+    ollama_available = bool(settings.ollama_api_key and settings.ollama_api_key.strip())
 
     current_provider = (settings.llm_provider or "gemini").lower().strip()
+    if current_provider not in {"gemini", "ollama"}:
+        current_provider = "gemini"
+
     default_model = (
-        (settings.qwen_model or "qwen3.8-27b")
-        if current_provider == "qwen"
+        ollama_model_val
+        if current_provider == "ollama"
         else (settings.gemini_model or "gemini-3.6-flash")
     )
 
@@ -57,14 +67,14 @@ async def list_available_models():
                 ),
                 "models": gemini_models,
             },
-            "qwen": {
-                "available": qwen_available,
+            "ollama": {
+                "available": ollama_available,
                 "message": (
-                    "Qwen API configured."
-                    if qwen_available
-                    else "Qwen API credentials not fully configured."
+                    f"Ollama Cloud API configured ({settings.ollama_base_url})."
+                    if ollama_available
+                    else "OLLAMA_API_KEY is not configured."
                 ),
-                "models": qwen_models,
+                "models": ollama_models,
             },
             "default_model": default_model,
             "default_provider": current_provider,

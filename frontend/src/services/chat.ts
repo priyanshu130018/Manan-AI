@@ -27,7 +27,8 @@ export async function sendChatMessage(
     message: message || "",
     provider: targetProvider,
     model: targetModel,
-    memory_enabled: memoryEnabledOverride !== undefined ? memoryEnabledOverride : currentSettings.memoryEnabled,
+    memory_enabled:
+      memoryEnabledOverride !== undefined ? memoryEnabledOverride : currentSettings.memoryEnabled,
   };
 
   if (sessionId && !sessionId.startsWith("draft-") && !sessionId.startsWith("temp-")) {
@@ -90,7 +91,7 @@ export async function getHealthInfo(): Promise<SystemHealth> {
 export interface AvailableModelItem {
   value: string;
   label: string;
-  provider: "gemini" | "qwen";
+  provider: "gemini" | "ollama";
 }
 
 export interface AvailableModelsData {
@@ -99,13 +100,13 @@ export interface AvailableModelsData {
     message: string;
     models: AvailableModelItem[];
   };
-  qwen: {
+  ollama: {
     available: boolean;
     message: string;
     models: AvailableModelItem[];
   };
   default_model: string;
-  default_provider: "gemini" | "qwen";
+  default_provider: "gemini" | "ollama";
 }
 
 export async function fetchAvailableModels(): Promise<AvailableModelsData> {

@@ -102,7 +102,8 @@ function SettingsPage() {
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground pt-1">
-              Gemini models connect via Google Gemini API. Qwen models connect via Alibaba Cloud Model Studio API.
+              Gemini models connect via Google Gemini API. Ollama models connect to Ollama Cloud API
+              (https://ollama.com/v1).
             </p>
           </div>
         </section>
@@ -186,9 +187,7 @@ function SettingsPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Active Model</dt>
-              <dd className="truncate pl-4 font-mono">
-                {settings.model}
-              </dd>
+              <dd className="truncate pl-4 font-mono">{settings.model}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Embedding Model</dt>

@@ -1,5 +1,7 @@
 import io
-from unittest.mock import AsyncMock
+import tempfile
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
 import pytest
 
 
@@ -19,6 +21,11 @@ def test_document_txt_upload_and_delete(client, mock_embedding, monkeypatch):
     assert upload_data["filename"] == "os_lecture.txt"
     assert upload_data["chunks"] >= 1
     doc_id = upload_data["document_id"]
+
+    # Verify no dangling temporary file left in temp directory
+    temp_dir = Path(tempfile.gettempdir())
+    dangling_files = list(temp_dir.glob(f"manan_upload_{doc_id}*"))
+    assert len(dangling_files) == 0, f"Found dangling temp files: {dangling_files}"
 
     # List documents
     list_res = client.get("/doc")

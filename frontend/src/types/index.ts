@@ -62,7 +62,7 @@ export interface ChatResponse {
     id: string;
     role: "user" | "assistant";
     content: string;
-    citations?: any[];
+    citations?: Citation[];
     created_at?: number;
   }[];
   mode?: string;
@@ -127,4 +127,3 @@ export interface ApiResponse<T> {
   message: string;
   data: T;
 }
-

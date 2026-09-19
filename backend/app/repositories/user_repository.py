@@ -4,6 +4,7 @@ from typing import Optional
 
 from app.models.database import PostgresDatabase, get_database
 from app.models.entities.user import UserEntity
+from app.core.config import get_settings
 from app.core.logging import LoggerFactory
 
 logger = LoggerFactory.create_logger("UserRepository")
@@ -19,14 +20,21 @@ class UserRepository:
         preferred_model = row.get("preferred_model")
         preferred_provider = row.get("preferred_provider", "gemini")
 
+        settings = get_settings()
+        configured_ollama_model = settings.ollama_model or "gpt-oss:120b"
+
         # Sanitize obsolete or legacy model values
-        if preferred_model not in {"gemini-3.6-flash", "qwen3.8-27b"}:
-            if preferred_model and "qwen" in str(preferred_model).lower():
-                preferred_model = "qwen3.8-27b"
-                preferred_provider = "qwen"
+        if preferred_model not in {"gemini-3.6-flash", configured_ollama_model}:
+            if preferred_model and any(k in str(preferred_model).lower() for k in ("gpt", "oss", "gemma", "nemotron", "qwen", "llama", "cloud")):
+                preferred_model = configured_ollama_model
+                preferred_provider = "ollama"
             else:
                 preferred_model = "gemini-3.6-flash"
                 preferred_provider = "gemini"
+        elif preferred_model == configured_ollama_model:
+            preferred_provider = "ollama"
+        elif preferred_model == "gemini-3.6-flash":
+            preferred_provider = "gemini"
 
         return UserEntity(
             id=str(row["id"]),

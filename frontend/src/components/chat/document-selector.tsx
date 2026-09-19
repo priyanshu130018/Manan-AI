@@ -81,7 +81,8 @@ export function DocumentSelector({
                 <div className="flex min-w-0 flex-1 flex-col pr-2">
                   <span className="truncate font-medium">{name}</span>
                   <span className="text-[10px] text-muted-foreground">
-                    {doc.source_type?.toUpperCase() || "PDF"} · {doc.page_count ?? 0} pages · {doc.chunk_count ?? doc.chunks ?? 0} chunks
+                    {doc.source_type?.toUpperCase() || "PDF"} · {doc.page_count ?? 0} pages ·{" "}
+                    {doc.chunk_count ?? doc.chunks ?? 0} chunks
                   </span>
                 </div>
               </DropdownMenuCheckboxItem>

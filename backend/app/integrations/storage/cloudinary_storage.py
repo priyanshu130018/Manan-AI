@@ -21,12 +21,14 @@ class CloudinaryStorage:
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
         folder: Optional[str] = None,
+        upload_preset: Optional[str] = None,
     ) -> None:
         settings = get_settings()
-        self._cloud_name = cloud_name or settings.cloudinary_cloud_name
-        self._api_key = api_key or settings.cloudinary_api_key
-        self._api_secret = api_secret or settings.cloudinary_api_secret
-        self._folder = (folder or settings.cloudinary_folder or "manan-ai").strip("/")
+        self._cloud_name = cloud_name if cloud_name is not None else settings.cloudinary_cloud_name
+        self._api_key = api_key if api_key is not None else settings.cloudinary_api_key
+        self._api_secret = api_secret if api_secret is not None else settings.cloudinary_api_secret
+        self._folder = (folder if folder is not None else (settings.cloudinary_folder or "manan-ai")).strip("/")
+        self._upload_preset = upload_preset if upload_preset is not None else settings.cloudinary_upload_preset
 
         if self._cloud_name and self._api_key and self._api_secret:
             cloudinary.config(
@@ -38,7 +40,6 @@ class CloudinaryStorage:
             self._configured = True
         else:
             self._configured = False
-            logger.warning("Cloudinary credentials not fully configured. Cloud uploads will require CLOUDINARY_* environment variables.")
 
     @property
     def is_configured(self) -> bool:
@@ -53,29 +54,29 @@ class CloudinaryStorage:
     ) -> dict[str, Any]:
         """Upload a document to Cloudinary under folder manan-ai/users/{user_id}/documents/{document_id}."""
         if not self._configured:
-            # Fallback mock/simulated object for local offline testing when Cloudinary credentials are absent
-            logger.warning("Cloudinary not configured; simulating asset upload for document %s", document_id)
-            return {
-                "cloudinary_public_id": f"{self._folder}/users/{user_id}/documents/{document_id}/{document_id}",
-                "cloudinary_secure_url": f"https://res.cloudinary.com/simulated/raw/upload/{self._folder}/users/{user_id}/documents/{document_id}/{document_id}",
-                "cloudinary_resource_type": "raw",
-            }
+            raise DocumentProcessingError(
+                "Cloudinary credentials are not configured. Please set CLOUDINARY_CLOUD_NAME, "
+                "CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your environment configuration."
+            )
 
         target_folder = f"{self._folder}/users/{user_id}/documents/{document_id}"
         ext = Path(filename).suffix.lower()
         # Choose resource_type: raw for docs/PDFs/text; image for image types
         resource_type = "image" if ext in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"} else "raw"
 
+        upload_kwargs: dict[str, Any] = {
+            "folder": target_folder,
+            "public_id": document_id,
+            "resource_type": resource_type,
+            "use_filename": False,
+            "unique_filename": False,
+            "overwrite": True,
+        }
+        if self._upload_preset:
+            upload_kwargs["upload_preset"] = self._upload_preset
+
         try:
-            result = cloudinary.uploader.upload(
-                file_obj,
-                folder=target_folder,
-                public_id=document_id,
-                resource_type=resource_type,
-                use_filename=False,
-                unique_filename=False,
-                overwrite=True,
-            )
+            result = cloudinary.uploader.upload(file_obj, **upload_kwargs)
             logger.info("Uploaded document '%s' to Cloudinary (public_id=%s)", filename, result.get("public_id"))
             return {
                 "cloudinary_public_id": result.get("public_id"),
@@ -88,8 +89,10 @@ class CloudinaryStorage:
 
     def delete_file(self, public_id: str, resource_type: str = "raw") -> bool:
         """Destroy an asset on Cloudinary by its public ID."""
-        if not self._configured or not public_id:
-            logger.info("Skipping Cloudinary destroy for %s (configured=%s)", public_id, self._configured)
+        if not self._configured:
+            logger.warning("Cloudinary not configured; cannot delete asset %s", public_id)
+            return False
+        if not public_id:
             return True
 
         try:
@@ -99,7 +102,6 @@ class CloudinaryStorage:
                 logger.info("Deleted Cloudinary asset: %s", public_id)
                 return True
             elif result_status == "not found" and resource_type == "raw":
-                # Retry with image/auto resource_type just in case
                 res_alt = cloudinary.uploader.destroy(public_id, resource_type="image", invalidate=True)
                 return res_alt.get("result") == "ok" or res_alt.get("result") == "not found"
             logger.warning("Cloudinary delete response for %s: %s", public_id, res)

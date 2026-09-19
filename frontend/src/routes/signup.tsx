@@ -5,7 +5,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { MananLogo } from "@/components/common/manan-logo";
 import { useAuth } from "@/hooks/use-auth";
 import { API_BASE_URL } from "@/services/axios";
@@ -97,9 +104,12 @@ function SignupPage() {
       });
       toast.success("Account created successfully!");
       const target = getSafeDestination();
-      navigate({ to: target as any });
-    } catch (err: any) {
-      toast.error(err?.friendlyMessage || "Failed to create account. Email may already be in use.");
+      navigate({ to: target as never });
+    } catch (err: unknown) {
+      const errObj = err as { friendlyMessage?: string } | null;
+      toast.error(
+        errObj?.friendlyMessage || "Failed to create account. Email may already be in use.",
+      );
     } finally {
       setLoading(false);
     }
@@ -222,7 +232,11 @@ function SignupPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>

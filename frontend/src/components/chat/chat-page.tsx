@@ -250,7 +250,7 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
     setFailedDraft(null);
 
     const isDraft = !activeSession?.chat_number && !isTemporary;
-    const sessionId = isDraft ? null : (activeId || activeSession?.id || null);
+    const sessionId = isDraft ? null : activeId || activeSession?.id || null;
 
     try {
       const response = await sendChatMessage(
@@ -271,7 +271,11 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
           role: m.role,
           content: m.content,
           citations: m.citations,
-          createdAt: m.created_at ? (typeof m.created_at === "number" && m.created_at < 1e11 ? m.created_at * 1000 : Number(m.created_at)) : Date.now(),
+          createdAt: m.created_at
+            ? typeof m.created_at === "number" && m.created_at < 1e11
+              ? m.created_at * 1000
+              : Number(m.created_at)
+            : Date.now(),
         }));
         replaceActiveMessages(dbMsgs);
       }
@@ -286,12 +290,13 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
       } else if (!isDraft) {
         await refreshActiveSession();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       setPendingMessageText(null);
       replaceActiveMessages(previousMessages);
       const message = toFriendlyError(error);
-      if (error?.response?.status === 429 || error?.retryAfter) {
-        const sec = error.retryAfter ? Math.round(error.retryAfter) : 30;
+      const errObj = error as { response?: { status?: number }; retryAfter?: number } | null;
+      if (errObj?.response?.status === 429 || errObj?.retryAfter) {
+        const sec = errObj.retryAfter ? Math.round(errObj.retryAfter) : 30;
         setRateLimitCountdown(sec);
       }
       setFailedDraft({ text, error: message });
@@ -310,9 +315,9 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
     // Optimistically update the message in frontend state and drop downstream answers
     const targetIdx = messages.findIndex((m) => m.id === messageId);
     if (targetIdx !== -1) {
-      const updatedMessages = messages.slice(0, targetIdx + 1).map((m, idx) =>
-        idx === targetIdx ? { ...m, content: newContent } : m,
-      );
+      const updatedMessages = messages
+        .slice(0, targetIdx + 1)
+        .map((m, idx) => (idx === targetIdx ? { ...m, content: newContent } : m));
       replaceActiveMessages(updatedMessages);
     }
 
@@ -325,14 +330,18 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
           role: m.role,
           content: m.content,
           citations: m.citations,
-          createdAt: m.created_at ? (typeof m.created_at === "number" && m.created_at < 1e11 ? m.created_at * 1000 : Number(m.created_at)) : Date.now(),
+          createdAt: m.created_at
+            ? typeof m.created_at === "number" && m.created_at < 1e11
+              ? m.created_at * 1000
+              : Number(m.created_at)
+            : Date.now(),
         }));
         replaceActiveMessages(dbMsgs);
       } else {
         await refreshActiveSession();
       }
       toast.success("Message updated.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Rollback to original conversation state so nothing is corrupted or lost
       replaceActiveMessages(previousMessages);
       await refreshActiveSession();
@@ -369,14 +378,18 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
           role: m.role,
           content: m.content,
           citations: m.citations,
-          createdAt: m.created_at ? (typeof m.created_at === "number" && m.created_at < 1e11 ? m.created_at * 1000 : Number(m.created_at)) : Date.now(),
+          createdAt: m.created_at
+            ? typeof m.created_at === "number" && m.created_at < 1e11
+              ? m.created_at * 1000
+              : Number(m.created_at)
+            : Date.now(),
         }));
         replaceActiveMessages(dbMsgs);
       } else {
         await refreshActiveSession();
       }
       toast.success("Response regenerated.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Rollback to original conversation state
       replaceActiveMessages(previousMessages);
       await refreshActiveSession();
@@ -434,7 +447,7 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="truncate text-sm font-semibold text-foreground">
-                  {user ? (activeSession?.title || "New conversation") : "Manan AI"}
+                  {user ? activeSession?.title || "New conversation" : "Manan AI"}
                 </h1>
 
                 {/* Authenticated user: 10-Digit ID / Temporary Badge */}
@@ -538,7 +551,8 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                         >
                           <Cpu className="h-3.5 w-3.5 text-primary shrink-0" />
                           <span className="max-w-[100px] truncate sm:max-w-[140px]">
-                            {MODEL_OPTIONS.find((m) => m.value === currentModel)?.label || currentModel}
+                            {MODEL_OPTIONS.find((m) => m.value === currentModel)?.label ||
+                              currentModel}
                           </span>
                         </Button>
                       </DropdownMenuTrigger>
@@ -559,14 +573,16 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                         )}
                       >
                         <span>{opt.label}</span>
-                        {currentModel === opt.value && <Check className="h-3.5 w-3.5 text-primary" />}
+                        {currentModel === opt.value && (
+                          <Check className="h-3.5 w-3.5 text-primary" />
+                        )}
                       </DropdownMenuItem>
                     ))}
                     <div className="my-1 border-t border-border/50" />
                     <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Qwen Models
+                      Ollama Models
                     </div>
-                    {MODEL_OPTIONS.filter((m) => m.provider === "qwen").map((opt) => (
+                    {MODEL_OPTIONS.filter((m) => m.provider === "ollama").map((opt) => (
                       <DropdownMenuItem
                         key={opt.value}
                         onClick={() => handleModelChange(opt.value)}
@@ -576,7 +592,9 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                         )}
                       >
                         <span>{opt.label}</span>
-                        {currentModel === opt.value && <Check className="h-3.5 w-3.5 text-primary" />}
+                        {currentModel === opt.value && (
+                          <Check className="h-3.5 w-3.5 text-primary" />
+                        )}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -678,7 +696,8 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                 </h2>
                 {!user && (
                   <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                    Sign in to chat with AI, upload and study your documents with page citations, and preserve your learning history.
+                    Sign in to chat with AI, upload and study your documents with page citations,
+                    and preserve your learning history.
                   </p>
                 )}
               </div>
@@ -785,11 +804,10 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                 !user
                   ? "Sign in to start chatting"
                   : selectedDocIds.length > 0
-                  ? "Ask anything about selected notes..."
-                  : "Ask anything…"
+                    ? "Ask anything about selected notes..."
+                    : "Ask anything…"
               }
             />
-
           </div>
         </div>
       </div>

@@ -280,9 +280,9 @@ def test_model_selection_sent_via_request_and_header(client, monkeypatch):
     monkeypatch.setattr(RAGService, "generate_response", mock_gen)
 
     # 1. Model in request JSON
-    res1 = client.post("/chat", json={"message": "Hi", "model": "llama3.2:3b"})
+    res1 = client.post("/chat", json={"message": "Hi", "model": "qwen3.8-27b"})
     assert res1.status_code == 200
-    assert captured_models[-1] == "llama3.2:3b"
+    assert captured_models[-1] == "qwen3.8-27b"
 
     # 2. Model in X-Model-Name header
     res2 = client.post("/chat", json={"message": "Hi"}, headers={"X-Model-Name": "gemini-3.6-flash"})

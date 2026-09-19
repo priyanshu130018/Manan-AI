@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  CheckCircle2,
-  FileText,
-  XCircle,
-  HardDrive,
-  Loader2,
-  AlertTriangle,
-} from "lucide-react";
+import { CheckCircle2, FileText, XCircle, HardDrive, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { UploadZone } from "@/components/upload/upload-zone";
 import { Progress } from "@/components/ui/progress";
@@ -31,13 +24,7 @@ export const Route = createFileRoute("/doc/upload")({
   component: UploadPage,
 });
 
-type UploadStage =
-  | "uploading"
-  | "extracting"
-  | "chunking"
-  | "indexing"
-  | "success"
-  | "error";
+type UploadStage = "uploading" | "extracting" | "chunking" | "indexing" | "success" | "error";
 
 interface UploadRow extends UploadResult {
   status: UploadStage;
@@ -88,7 +75,8 @@ function UploadPage() {
       const ext = "." + file.name.split(".").pop()?.toLowerCase();
       if (!validExtensions.includes(ext)) {
         toast.error(`Unsupported format: ${file.name}`, {
-          description: "Supported formats: PDF (with OCR), CSV, JSON, SQL, DOCX, PPTX, TXT, Images.",
+          description:
+            "Supported formats: PDF (with OCR), CSV, JSON, SQL, DOCX, PPTX, TXT, Images.",
         });
         continue;
       }
@@ -196,7 +184,8 @@ function UploadPage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Upload Documents</h1>
             <p className="text-sm text-muted-foreground">
-              Add study materials for RAG retrieval. Files are chunked and embedded in PostgreSQL pgvector.
+              Add study materials for RAG retrieval. Files are chunked and embedded in PostgreSQL
+              pgvector.
             </p>
           </div>
           <Button asChild variant="outline" className="rounded-xl">
@@ -263,9 +252,7 @@ function UploadPage() {
                             {row.stageText}: {row.message}
                           </span>
                         )}
-                        {row.status !== "success" &&
-                          row.status !== "error" &&
-                          row.stageText}
+                        {row.status !== "success" && row.status !== "error" && row.stageText}
                       </p>
                     </div>
                     {row.status === "success" && (

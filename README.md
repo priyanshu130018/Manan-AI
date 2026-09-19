@@ -1,12 +1,12 @@
 # Manan-AI
 
-An authenticated, production-ready AI conversational assistant and intelligent study platform powered by FastAPI, PostgreSQL + pgvector, LangChain, Google Gemini, and Alibaba Cloud Qwen.
+An authenticated, production-ready AI conversational assistant and intelligent study platform powered by FastAPI, PostgreSQL + pgvector, LangChain, Google Gemini, and Ollama Cloud (running gpt-oss:120b).
 
 ---
 
 ## Project Description
 
-**Manan-AI** is an advanced retrieval-augmented generation (RAG) platform and conversational AI assistant designed for seamless document analysis, semantic study materials retrieval, and context-grounded AI interaction. It allows users to upload documents (PDF, DOCX, PPTX, TXT, images with OCR), stores assets securely on Cloudinary, generates dense vector embeddings, indexes them directly into PostgreSQL with `pgvector` using an HNSW index, and combines vector similarity search with full-text keyword search using Reciprocal Rank Fusion (RRF).
+**Manan-AI** is an advanced retrieval-augmented generation (RAG) platform and conversational AI assistant designed for seamless document analysis, semantic study materials retrieval, and context-grounded AI interaction. Users can upload documents (PDF, DOCX, PPTX, TXT, images with OCR), which are permanently stored in Cloudinary. Dense 384-dimensional vector embeddings (`all-MiniLM-L6-v2`) are generated and stored directly into PostgreSQL with `pgvector` using an HNSW cosine index. Search combines dense vector similarity with PostgreSQL full-text search (FTS) using Reciprocal Rank Fusion (RRF).
 
 ---
 
@@ -15,10 +15,12 @@ An authenticated, production-ready AI conversational assistant and intelligent s
 - **Authenticated Multi-Turn Chat**: Secure session-based conversations with message editing, branch regeneration, and persistent conversation summaries.
 - **Pure PostgreSQL + pgvector Vector Storage**: Native storage of document chunk vectors in PostgreSQL with high-performance HNSW cosine distance indexing (`vector_cosine_ops`), eliminating external vector database dependencies.
 - **Hybrid RAG Retrieval**: Dual-pipeline retrieval combining dense vector similarity search (384-dimensional embeddings via `all-MiniLM-L6-v2`) and sparse keyword full-text search (PostgreSQL FTS), fused via Reciprocal Rank Fusion (RRF).
-- **Cloud Document Storage**: Secure storage and asset management via Cloudinary with temporary file spooling and cleanup on upload, plus secure authenticated redirects for document delivery.
-- **Comprehensive Ingestion & OCR**: Support for PDF, DOCX, PPTX, TXT, and OCR image parsing with structure-preserving chunking, configurable upload and storage limits, and transactional persistence.
+- **Permanent Cloudinary Document Storage**: Uploaded files are stored permanently in Cloudinary with temporary `/tmp` file spooling deleted immediately in `finally` blocks upon completion or failure.
+- **Comprehensive Document & OCR Ingestion**: Support for PDF, DOCX, PPTX, TXT, and OCR image parsing with structure-preserving chunking, configurable upload and storage limits, and transactional persistence.
 - **Long-Term Memory**: Automatic fact extraction and manual memory management for personalized user context across sessions.
-- **Production LLM Models**: Multi-model routing supporting Google Gemini (`gemini-3.6-flash`) and Alibaba Cloud Model Studio Qwen (`qwen3.8-27b`).
+- **Supported LLM Providers & Models**:
+  - **Google Gemini**: `gemini-3.6-flash`
+  - **Ollama Cloud**: `gpt-oss:120b` (configurable via `OLLAMA_MODEL`)
 - **Strict Configuration Enforcement**: Single source of truth configuration via `.env` with fail-fast startup validation and zero silent fallbacks.
 - **Enterprise Security**: Argon2/bcrypt password hashing, HTTP-only JWT session cookies, and Google OAuth 2.0 integration with CSRF state protection.
 
@@ -29,10 +31,9 @@ An authenticated, production-ready AI conversational assistant and intelligent s
 - **Backend**: Python 3.11+, FastAPI, Pydantic v2, Pydantic-Settings, Uvicorn
 - **Database & Vectors**: PostgreSQL 16+, `pgvector` extension, HNSW Indexing, Alembic migrations, psycopg3
 - **Document Storage**: Cloudinary Cloud Storage
-- **AI & RAG**: LangChain, Google Gemini API (`google-genai`), Alibaba Cloud Model Studio Qwen API, Sentence-Transformers / FastEmbed (`all-MiniLM-L6-v2`)
-- **Document Processing**: PyPDF, python-docx, python-pptx, PyTesseract (OCR), Pillow
+- **Document Processing & OCR**: PyPDF, pdf2image, python-docx, python-pptx, Qwen2.5-VL (`Qwen/Qwen2.5-VL-72B-Instruct` via Hugging Face Hosted Inference API), Pillow
 - **Frontend**: React 19, TypeScript, Vite, TanStack Router, TailwindCSS, Axios
-- **Deployment**: Render (Backend Docker Web Service + PostgreSQL with pgvector), Vercel (Frontend Single Page Application)
+- **Deployment & Orchestration**: Docker, Docker Compose, Render (Backend), Vercel (Frontend)
 
 ---
 
@@ -40,12 +41,12 @@ An authenticated, production-ready AI conversational assistant and intelligent s
 
 ```text
                                   +-----------------------+
-                                  |  React Client (Vercel)|
+                                  |     React Client      |
                                   +-----------+-----------+
                                               | (HTTP / REST)
                                               v
 +-----------------------------------------------------------------------------------------+
-|                              FastAPI Backend (Render)                                   |
+|                                    FastAPI Backend                                      |
 |                                                                                         |
 |  +-------------------+    +---------------------+    +-------------------------------+  |
 |  |   Auth Service    |    |  Document Service   |    |         Chat Service          |  |
@@ -64,236 +65,183 @@ An authenticated, production-ready AI conversational assistant and intelligent s
                         v                             v                 v
           +---------------------------+ +-------------------------------------------------+
           |    Cloudinary Storage     | |           PostgreSQL with pgvector              |
-          |  (Secure Asset Delivery)  | | +-------------------+ +-----------------------+ |
-          +---------------------------+ | | users / sessions  | |    document_chunks    | |
-                                        | |    / messages     | |(embedding vector(384))| |
-                                        | +-------------------+ +-----------------------+ |
+          |  (Permanent File Storage) | | +-------------------+ +-----------------------+ |
+          |                           | | | users / sessions  | |    document_chunks    | |
+          |                           | | |    / messages     | |(embedding vector(384))| |
+          +---------------------------+ | +-------------------+ +-----------------------+ |
                                         +-------------------------------------------------+
                                                        ^                     ^
                                                        |                     |
                                             +----------+----------+ +--------+---------+
-                                            |  Google Gemini API  | |  Alibaba Qwen    |
-                                            | (gemini-3.6-flash)  | |  (qwen3.8-27b)   |
+                                            |  Google Gemini API  | | Ollama Cloud API |
+                                            | (gemini-3.6-flash)  | |  (gpt-oss:120b)  |
                                             +---------------------+ +------------------+
 ```
 
 ---
 
-## Project Structure
+## Local Docker Setup
 
-```text
-Manan-AI/
-├── .env.example                 # Documented template of required environment variables
-├── .env                         # Single source of truth environment configuration
-├── docker-compose.yml           # Multi-container orchestration (PostgreSQL+pgvector, Backend, Frontend)
-├── Dockerfile                   # Production container build for FastAPI backend (Render ready)
-├── README.md                    # Project documentation
-├── backend/
-│   ├── alembic/                 # Database migrations
-│   │   ├── versions/            # Versioned migration scripts (001 through 004_cloudinary_storage)
-│   │   └── env.py               # Alembic configuration connected to application settings
-│   ├── alembic.ini              # Alembic environment definitions
-│   ├── requirements.txt         # Backend Python dependencies
-│   ├── app/
-│   │   ├── main.py              # FastAPI app factory, middleware, and exception handlers
-│   │   ├── api/                 # API Layer
-│   │   │   ├── dependencies/    # Dependency injection (Auth, Services, Repositories)
-│   │   │   ├── middleware/      # CORS and security middleware
-│   │   │   └── routes/          # Standardized API routes (auth, chat, documents, memories, models, profile, sessions)
-│   │   ├── core/                # Core configuration, exceptions, and logging
-│   │   ├── integrations/        # External integrations (Gemini, Qwen, Embeddings, Parsers, Storage)
-│   │   │   ├── gemini/          # Google Gemini integration
-│   │   │   ├── qwen/            # Alibaba Cloud Model Studio Qwen integration
-│   │   │   ├── storage/         # Cloudinary cloud storage
-│   │   │   ├── embeddings/      # Dense vector embeddings
-│   │   │   └── parsers/         # Multi-format document & OCR parsers
-│   │   ├── models/              # SQLAlchemy / psycopg models, entities, and Pydantic schemas
-│   │   ├── repositories/        # Database access layer (PostgreSQL pgvector VectorRepository, DocumentRepository, etc.)
-│   │   ├── services/            # Business logic (Auth, Chat, Document, Memory, RAG, Retrieval)
-│   │   └── utils/               # Text normalization and helper utilities
-│   └── tests/                   # Test suite (config, pgvector retrieval, API contracts, Qwen, Cloudinary)
-└── frontend/                    # React + TypeScript + Vite frontend application (Vercel ready)
-    ├── src/
-    │   ├── components/          # UI components (Chat, Documents, Navigation, Modals)
-    │   ├── routes/              # TanStack router page views
-    │   ├── services/            # Typed API client services
-    │   └── types/               # Shared TypeScript schemas
-    ├── vercel.json              # Vercel SPA routing configuration
-    └── package.json             # Frontend dependencies and scripts
+### 1. Clone the repository
+```bash
+git clone https://github.com/priyanshu130018/Manan-AI.git
+cd Manan-AI
 ```
 
----
+### 2. Configure Environment Variables
+Create your `.env` file from the provided template:
+```bash
+cp .env.example .env
+```
+Edit `.env` and fill in:
+- PostgreSQL credentials (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`)
+- Google Gemini API key (`GOOGLE_API_KEY`)
+- Ollama Cloud API key (`OLLAMA_API_KEY`, `OLLAMA_BASE_URL=https://ollama.com`, `OLLAMA_MODEL=gpt-oss:120b`)
+- Cloudinary credentials (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`)
+- Security settings (`JWT_SECRET_KEY`)
 
-## Environment Variables
+### 3. Start Docker Compose (Frontend + Backend + PostgreSQL)
+```bash
+docker compose up --build -d
+```
 
-All configuration is strictly validated on application startup. If any mandatory variable is missing, startup fails immediately with a descriptive error.
+> **Note**: Docker Compose runs **frontend**, **backend**, and **postgres**. Ollama is accessed directly as an external Cloud API over HTTPS; no Ollama Docker container or local model download is needed.
 
-| Variable | Description | Example |
-| :--- | :--- | :--- |
-| `APP_NAME` | Name of the application | `Manan AI` |
-| `ENV` | Environment mode (`development` / `production` / `test`) | `production` |
-| `HOST` | Backend bind host | `0.0.0.0` |
-| `PORT` | Backend bind port | `8000` |
-| `DATABASE_URL` | PostgreSQL connection string with pgvector | `postgresql://postgres:password@host:5432/manan_ai` |
-| `JWT_SECRET_KEY` | Secret key for signing JWT tokens | `your-32-char-random-secret-key` |
-| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifespan in minutes | `60` |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifespan in days | `7` |
-| `SESSION_EXPIRY_DAYS` | Session expiry lifespan in days | `30` |
-| `GOOGLE_API_KEY` | Google Gemini API key | `AIzaSy...` |
-| `GOOGLE_CLIENT_ID` | (Optional) Google OAuth 2.0 client ID | `...apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | (Optional) Google OAuth 2.0 client secret | `GOCSPX-...` |
-| `GOOGLE_REDIRECT_URI` | Google OAuth redirect callback URL | `https://your-backend.onrender.com/auth/google/callback` |
-| `FRONTEND_URL` | Base URL for frontend application | `https://your-frontend.vercel.app` |
-| `LLM_PROVIDER` | Default LLM provider (`gemini` or `qwen`) | `gemini` |
-| `LLM_MODEL` | Default LLM model name | `gemini-3.6-flash` |
-| `QWEN_API_KEY` | Alibaba Cloud Model Studio API key | `sk-...` |
-| `QWEN_BASE_URL` | Alibaba Cloud Model Studio Base URL | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
-| `QWEN_MODEL` | Qwen model identifier | `qwen3.8-27b` |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary Cloud Name | `your-cloud-name` |
-| `CLOUDINARY_API_KEY` | Cloudinary API Key | `123456789012345` |
-| `CLOUDINARY_API_SECRET` | Cloudinary API Secret | `your-cloudinary-secret` |
-| `CLOUDINARY_FOLDER` | Cloudinary folder prefix | `manan-ai` |
-| `EMBEDDING_PROVIDER` | Embedding provider (`fastembed` or `local`) | `fastembed` |
-| `EMBEDDING_MODEL` | Embedding model identifier | `sentence-transformers/all-MiniLM-L6-v2` |
-| `EMBEDDING_DIMENSION` | Dimension of embedding vectors | `384` |
-| `UPLOAD_DIR` | Directory for temporary upload spooling | `./data/documents` |
-| `MAX_UPLOAD_SIZE_MB` | Maximum single document upload size (MB) | `50` |
-| `TOTAL_STORAGE_LIMIT_MB` | Maximum total user storage quota (MB) | `500` |
-| `CHUNK_SIZE` | Text chunk size in characters | `500` |
-| `CHUNK_OVERLAP` | Overlap between consecutive chunks | `50` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed CORS origins | `https://your-frontend.vercel.app,http://localhost:5173` |
-| `VITE_API_BASE_URL` | Frontend API backend URL | `https://your-backend.onrender.com` |
+### 4. Verify Services
+- **Frontend App**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+- **PostgreSQL**:
+  - Inside Docker network: `postgres:5432`
+  - Host access (psql / DBeaver / pgAdmin): `localhost:5433` (mapped from container port 5432)
 
 ---
 
-## Production Deployment Guide
+## Cloudinary Document Storage
 
-### 1. Database Setup on Render (PostgreSQL with pgvector)
-1. In Render Dashboard, create a **New PostgreSQL Database**.
-2. Set PostgreSQL Version to **16**.
-3. In database connection or psql shell, verify the `vector` extension is enabled:
-   ```sql
-   CREATE EXTENSION IF NOT EXISTS vector;
+Uploaded documents are stored permanently in **Cloudinary** and indexed into **PostgreSQL + pgvector**:
+
+### Ingestion Lifecycle:
+1. **Upload Request**: Client sends file to `POST /doc/upload`.
+2. **Temporary Spool**: File is temporarily buffered into the system `/tmp` directory.
+3. **Cloudinary Permanent Upload**: File is securely uploaded to Cloudinary under:
+   ```text
+   manan-ai/users/{user_id}/documents/{document_id}
    ```
-4. Copy the **Internal Database URL** (or External for initial migrations).
+4. **Text Extraction & Chunking**: Content is parsed and split into structure-preserving chunks.
+5. **Dense Vector Embeddings**: 384-dimensional embeddings (`all-MiniLM-L6-v2`) are computed and stored in `document_chunks` table in PostgreSQL.
+6. **Automatic Cleanup**: The temporary `/tmp` file is deleted in a `finally` block regardless of whether ingestion succeeded or failed.
+7. **Failure Rollback**: If parsing or database indexing fails, the uploaded Cloudinary asset is automatically destroyed.
 
-### 2. Cloudinary Setup (Document Storage)
-1. Sign up or log into [Cloudinary](https://cloudinary.com/).
-2. From your Cloudinary Dashboard, obtain:
-   - **Cloud Name** (`CLOUDINARY_CLOUD_NAME`)
-   - **API Key** (`CLOUDINARY_API_KEY`)
-   - **API Secret** (`CLOUDINARY_API_SECRET`)
-
-### 3. Backend Deployment on Render (FastAPI Docker Service)
-1. Create a **New Web Service** connected to your repository on Render.
-2. Select **Docker** environment.
-3. Configure Environment Variables in Render:
-   - `DATABASE_URL`: Your Render PostgreSQL connection string
-   - `GOOGLE_API_KEY`: Your Google Gemini API Key
-   - `QWEN_API_KEY`: Your Alibaba Cloud Model Studio API Key
-   - `QWEN_BASE_URL`: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
-   - `QWEN_MODEL`: `qwen3.8-27b`
-   - `CLOUDINARY_CLOUD_NAME`: Your Cloudinary cloud name
-   - `CLOUDINARY_API_KEY`: Your Cloudinary API key
-   - `CLOUDINARY_API_SECRET`: Your Cloudinary API secret
-   - `CLOUDINARY_FOLDER`: `manan-ai`
-   - `JWT_SECRET_KEY`: High-entropy random 32+ character string
-   - `FRONTEND_URL`: `https://<your-vercel-app>.vercel.app`
-   - `CORS_ALLOWED_ORIGINS`: `https://<your-vercel-app>.vercel.app`
-   - `ENV`: `production`
-4. Render automatically executes the Dockerfile `CMD`, running `alembic upgrade head` followed by Uvicorn on `${PORT}`.
-
-### 4. Frontend Deployment on Vercel
-1. In Vercel Dashboard, import the Git repository.
-2. Set **Root Directory** to `frontend`.
-3. Framework Preset: **Vite**.
-4. Configure Environment Variables:
-   - `VITE_API_BASE_URL`: `https://<your-render-service>.onrender.com`
-5. Deploy! Vercel uses `frontend/vercel.json` for client-side SPA routing rewrites.
+> **Security Note**: The database (`user_id` and `document_id`) is the sole source of truth for authorization. File access via `GET /doc/{document_id}/file` validates the user's authentication before issuing a secure temporary 307 redirect.
 
 ---
 
-## Local Development
+## OCR Pipeline (Qwen2.5-VL via Hugging Face Hosted Inference API)
 
-```bash
-# 1. Setup Backend
-cd backend
-python -m venv .venv
-.venv\Scripts\activate   # On Windows (or 'source .venv/bin/activate' on Linux/macOS)
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+- **OCR Service**: Hugging Face Hosted Inference API
+- **Model**: `Qwen/Qwen2.5-VL-72B-Instruct`
+- **Execution**: Remote HTTPS API (`https://router.huggingface.co/v1/chat/completions`)
+- **Local OCR Model**: None (zero local model weights or local torch execution for OCR)
+- **Embedding Model**: `sentence-transformers/all-MiniLM-L6-v2`
+- **Embedding Dimension**: `384`
 
-# 2. Setup Frontend (in separate terminal)
-cd frontend
-npm install
-npm run dev
+### Document OCR Pipeline:
+```text
+Scanned PDF
+    ↓
+pdf2image
+    ↓
+Qwen2.5-VL via Hugging Face (HTTPS API)
+    ↓
+text
+    ↓
+chunking (StructurePreservingSplitter)
+    ↓
+MiniLM embeddings (384d)
+    ↓
+PostgreSQL + pgvector (HNSW cosine index)
 ```
+
+- **Zero Local Model Weight Overhead**: Model weights are NOT downloaded or executed inside Docker. Inference is hosted remotely by Hugging Face over HTTPS (`HF_API_TOKEN`).
+- **Smart Selective OCR**: Native digital PDFs are parsed directly with `pypdf`. The Hugging Face OCR API is invoked only when extractable text is insufficient (< 40 characters on scanned pages or embedded document images).
+- **Structured Markdown Normalization**: OCR output is cleaned and structured into Markdown (preserving tables, headings, LaTeX formulas, and lists) before entering the chunking pipeline.
+- **Lightweight Backend Container**: Docker images remain lean and lightweight with no heavy vision-language model footprint.
 
 ---
 
-## Running with Docker Compose
+## Ollama Cloud LLM Configuration
 
-```bash
-docker compose up --build
+Ollama is used as an external cloud API provider over HTTPS:
+
+```env
+LLM_PROVIDER=gemini
+LLM_MODEL=gemini-3.6-flash
+
+# Ollama Cloud API Settings
+OLLAMA_API_KEY=your_ollama_cloud_api_key_here
+OLLAMA_BASE_URL=https://ollama.com
+OLLAMA_MODEL=gpt-oss:120b
 ```
+
+### Key Guidelines:
+- **No Local Server / Container**: No Ollama container or local server (`localhost:11434`) is required.
+- **No Model Download**: Models are not downloaded locally; inference runs directly via Ollama Cloud.
+- **No GPU Required**: The backend container does not require a GPU for Ollama inference.
+- **Security**: `OLLAMA_API_KEY` is a backend-only secret and must never be committed to Git or exposed to the frontend.
+
+### Ollama Cloud Troubleshooting:
+- `401 Unauthorized / Authentication failed`: Verify that `OLLAMA_API_KEY` is set correctly in `.env`.
+- `429 Rate Limit`: Ollama Cloud rate limit reached; wait before retrying.
+- `Connection Error`: Ensure network connectivity to `https://ollama.com`.
 
 ---
 
-## API Documentation
+## Render & Production Deployment
 
-All API responses follow the standardized `ApiResponse[T]` format:
-```json
-{
-  "success": true,
-  "message": "Human readable summary",
-  "data": { ... }
-}
-```
+For deploying the backend on Render:
+1. **Build Command**: `pip install -r requirements.txt`
+2. **Start Command**: `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+3. **Environment Variables**:
+   - `DATABASE_URL`: PostgreSQL with pgvector connection string
+   - `GOOGLE_API_KEY`: Google Gemini API key
+   - `OLLAMA_API_KEY`: Ollama Cloud API key
+   - `OLLAMA_BASE_URL`: `https://ollama.com`
+   - `OLLAMA_MODEL`: `gpt-oss:120b`
+   - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+   - `JWT_SECRET_KEY`, `JWT_ALGORITHM`
+   - `FRONTEND_URL`, `GOOGLE_REDIRECT_URI`
 
-### Core API Groups
+---
 
-| Group | Method | Endpoint | Description |
-| :--- | :--- | :--- | :--- |
-| **Health** | `GET` | `/health` | Application status and model provider info |
-| **Auth** | `POST` | `/auth/signup` | Register new user and set session cookie |
-| | `POST` | `/auth/login` | Authenticate user credentials |
-| | `POST` | `/auth/logout` | Clear session cookie |
-| | `GET` | `/auth/me` | Fetch authenticated user profile |
-| | `GET` | `/auth/google/login` | Initiate Google OAuth 2.0 flow |
-| | `GET` | `/auth/google/callback` | OAuth redirect callback handler |
-| **Chat** | `POST` | `/chat` | Send message, perform hybrid RAG retrieval, generate answer |
-| | `GET` | `/chat/{chat_number}` | Retrieve public shared chat by 10-digit number |
-| **Messages** | `PATCH` | `/messages/{message_id}` | Edit user message and regenerate response turn |
-| | `POST` | `/messages/{message_id}/regenerate` | Regenerate assistant response |
-| **Sessions** | `GET` | `/sessions` | List active user chat sessions |
-| | `POST` | `/sessions` | Create new session |
-| | `GET` | `/sessions/{session_id}` | Get session details and full message history |
-| | `PATCH` | `/sessions/{session_id}` | Update session title or active document filters |
-| | `DELETE` | `/sessions/{session_id}` | Delete session and its messages |
-| **Documents** | `POST` | `/doc/upload` | Upload to Cloudinary, parse, chunk, and index in pgvector |
-| | `GET` | `/doc` | List all user documents and processing statuses |
-| | `GET` | `/doc/storage` | Get storage quota and usage breakdown |
-| | `GET` | `/doc/{document_id}` | Get document metadata and chunk stats |
-| | `GET` | `/doc/{document_id}/file` | Secure redirect (307) to Cloudinary asset |
-| | `DELETE` | `/doc/{document_id}` | Delete document, Cloudinary asset, and pgvector embeddings |
-| **Memories** | `GET` | `/memories` | List long-term memory facts |
-| | `POST` | `/memories` | Add manual memory fact |
-| | `PATCH` | `/memories/{memory_id}` | Update memory content |
-| | `DELETE` | `/memories/{memory_id}` | Delete single memory |
-| | `DELETE` | `/memories` | Clear all user memories |
-| **Models** | `GET` | `/llm/models` | List available Gemini & Qwen models |
+## Docker Troubleshooting
+
+| Action | Command | Description |
+| :--- | :--- | :--- |
+| **View Backend Logs** | `docker compose logs -f backend` | Stream real-time logs from FastAPI backend container |
+| **View Frontend Logs** | `docker compose logs -f frontend` | Stream logs from Frontend container |
+| **View Postgres Logs** | `docker compose logs -f postgres` | Stream real-time logs from PostgreSQL pgvector container |
+| **Check Container Status** | `docker compose ps` | View running containers and port mappings |
+| **Stop Containers** | `docker compose down` | Stop containers while preserving database volume |
+| **Reset Database** | `docker compose down -v` | Stop containers and delete named PostgreSQL volume |
+| **Rebuild Containers** | `docker compose up --build -d` | Rebuild images and start services |
 
 ---
 
 ## Testing
 
-Run the automated test suite using `pytest`:
+Run the automated test suite with `pytest`:
 
 ```bash
 cd backend
-pytest tests/ -v
+pytest -v
+```
+
+Build the frontend for production:
+
+```bash
+cd frontend
+npm run build
 ```
 
 ---

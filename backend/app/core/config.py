@@ -40,31 +40,36 @@ class Settings(BaseSettings):
     google_redirect_uri: str = Field(alias="GOOGLE_REDIRECT_URI")
     frontend_url: str = Field(alias="FRONTEND_URL")
 
-    # LLM Provider Configuration
+    # LLM Provider Configuration ("gemini" | "ollama")
     llm_provider: str = Field(alias="LLM_PROVIDER")
     llm_model: str = Field(alias="LLM_MODEL")
-    qwen_api_key: Optional[str] = Field(default=None, alias="QWEN_API_KEY")
-    qwen_base_url: Optional[str] = Field(default=None, alias="QWEN_BASE_URL")
-    qwen_model: Optional[str] = Field(default="qwen3.8-27b", alias="QWEN_MODEL")
+
+    # Ollama Cloud API Configuration
+    ollama_api_key: Optional[str] = Field(default=None, alias="OLLAMA_API_KEY")
+    ollama_base_url: str = Field(default="https://ollama.com", alias="OLLAMA_BASE_URL")
+    ollama_model: str = Field(default="gpt-oss:120b", alias="OLLAMA_MODEL")
 
     # Cloudinary Document Storage
     cloudinary_cloud_name: Optional[str] = Field(default=None, alias="CLOUDINARY_CLOUD_NAME")
     cloudinary_api_key: Optional[str] = Field(default=None, alias="CLOUDINARY_API_KEY")
     cloudinary_api_secret: Optional[str] = Field(default=None, alias="CLOUDINARY_API_SECRET")
     cloudinary_folder: Optional[str] = Field(default="manan-ai", alias="CLOUDINARY_FOLDER")
+    cloudinary_upload_preset: Optional[str] = Field(default=None, alias="CLOUDINARY_UPLOAD_PRESET")
 
     # Embeddings Configuration (PostgreSQL pgvector)
     embedding_provider: str = Field(alias="EMBEDDING_PROVIDER")
     embedding_model: str = Field(alias="EMBEDDING_MODEL")
     embedding_dimension: int = Field(alias="EMBEDDING_DIMENSION")
 
-    # Document Processing & Storage
-    documents_dir: str = Field(default="./data/documents", alias="UPLOAD_DIR")
+    # Document Processing Quotas & Limits
     max_upload_size_mb: int = Field(alias="MAX_UPLOAD_SIZE_MB")
     total_storage_limit_mb: int = Field(alias="TOTAL_STORAGE_LIMIT_MB")
     chunk_size: int = Field(alias="CHUNK_SIZE")
     chunk_overlap: int = Field(alias="CHUNK_OVERLAP")
-    tesseract_cmd: Optional[str] = Field(default=None, alias="TESSERACT_CMD")
+
+    # Hugging Face Hosted Inference OCR Configuration
+    hf_api_token: Optional[str] = Field(default=None, alias="HF_API_TOKEN")
+    hf_ocr_model: str = Field(default="Qwen/Qwen2.5-VL-72B-Instruct", alias="HF_OCR_MODEL")
 
     # CORS
     cors_allowed_origins: str = Field(alias="CORS_ALLOWED_ORIGINS")
@@ -72,22 +77,19 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_provider_and_credentials(self) -> "Settings":
         prov = (self.llm_provider or "").lower().strip()
-        if prov not in {"gemini", "qwen"}:
+        if prov not in {"gemini", "ollama"}:
             raise ValueError(
-                f"Unsupported LLM provider '{self.llm_provider}'. Supported providers are: 'gemini', 'qwen'"
+                f"Unsupported LLM provider '{self.llm_provider}'. Supported providers are: 'gemini', 'ollama'"
             )
 
-        if prov == "qwen":
-            missing = []
-            if not self.qwen_api_key or not self.qwen_api_key.strip():
-                missing.append("QWEN_API_KEY")
-            if not self.qwen_base_url or not self.qwen_base_url.strip():
-                missing.append("QWEN_BASE_URL")
-            if not self.qwen_model or not self.qwen_model.strip():
-                missing.append("QWEN_MODEL")
-            if missing:
+        if prov == "ollama":
+            if not self.ollama_api_key or not self.ollama_api_key.strip():
                 raise ValueError(
-                    f"Missing required environment variable(s) for Qwen provider: {', '.join(missing)}"
+                    "Missing required environment variable for Ollama Cloud provider: OLLAMA_API_KEY"
+                )
+            if not self.ollama_base_url or not self.ollama_base_url.strip():
+                raise ValueError(
+                    "Missing required environment variable for Ollama Cloud provider: OLLAMA_BASE_URL"
                 )
 
         if prov == "gemini":
@@ -105,10 +107,6 @@ class Settings(BaseSettings):
     @property
     def database_path(self) -> str:
         return self.database_url
-
-    @property
-    def upload_dir(self) -> str:
-        return self.documents_dir
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -151,10 +149,5 @@ def get_settings() -> Settings:
         raise RuntimeError(
             f"Configuration error: {error_detail}. Please check your .env file."
         ) from e
-
-    # Ensure document upload directory exists
-    docs_path = settings.resolve_path(settings.documents_dir)
-    docs_path.mkdir(parents=True, exist_ok=True)
-    settings.documents_dir = str(docs_path)
 
     return settings

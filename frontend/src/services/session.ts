@@ -1,5 +1,5 @@
 import { api } from "./axios";
-import type { SessionItem, ChatMessage, ApiResponse, AppMode } from "@/types";
+import type { SessionItem, ChatMessage, ApiResponse, AppMode, Citation } from "@/types";
 
 export interface SessionDetail {
   id: string;
@@ -14,7 +14,7 @@ export interface SessionDetail {
     session_id?: string;
     role: "user" | "assistant";
     content: string;
-    citations: any[];
+    citations: Citation[];
     created_at: number;
   }[];
   summary: string | null;

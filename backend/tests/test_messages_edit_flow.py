@@ -293,7 +293,7 @@ def test_edit_with_gemini_36_succeeds_and_gemini_25_unavailable_preserves_conver
     """
     Verify:
     1. Initial question with Gemini 3.6 Flash succeeds.
-    2. Editing with Llama 3.2:3B when LLM encounters an error:
+    2. Editing with Qwen 3.8 27B when LLM encounters an error:
        - Returns 500/503 with informative error message.
        - Database is NOT updated; original question and answer remain intact.
        - No error message is persisted as an assistant message.

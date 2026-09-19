@@ -45,7 +45,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { updateProfile, changePassword } from "@/services/auth";
-import { listMemories, createMemory, updateMemory, deleteMemory, clearAllMemories, type MemoryItem } from "@/services/memory";
+import {
+  listMemories,
+  createMemory,
+  updateMemory,
+  deleteMemory,
+  clearAllMemories,
+  type MemoryItem,
+} from "@/services/memory";
 import { readSettings, writeSettings } from "@/services/axios";
 
 export const Route = createFileRoute("/profile")({
@@ -116,8 +123,9 @@ function ProfilePage() {
       await updateProfile({ name: name.trim(), mobile: mobile.trim() || undefined });
       await refreshUser();
       toast.success("Profile updated successfully!");
-    } catch (err: any) {
-      toast.error(err?.friendlyMessage || "Failed to update profile.");
+    } catch (err: unknown) {
+      const errObj = err as { friendlyMessage?: string } | null;
+      toast.error(errObj?.friendlyMessage || "Failed to update profile.");
     } finally {
       setSavingProfile(false);
     }
@@ -144,8 +152,9 @@ function ProfilePage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-    } catch (err: any) {
-      toast.error(err?.friendlyMessage || "Failed to change password.");
+    } catch (err: unknown) {
+      const errObj = err as { friendlyMessage?: string } | null;
+      toast.error(errObj?.friendlyMessage || "Failed to change password.");
     } finally {
       setChangingPassword(false);
     }
@@ -236,7 +245,11 @@ function ProfilePage() {
               Manage your personal information, security credentials, and AI memory
             </p>
           </div>
-          <Button variant="destructive" onClick={handleLogout} className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="destructive"
+            onClick={handleLogout}
+            className="flex items-center gap-2 self-start sm:self-auto"
+          >
             <LogOut className="h-4 w-4" />
             Log Out
           </Button>
@@ -298,7 +311,11 @@ function ProfilePage() {
 
               <div className="flex justify-end pt-2">
                 <Button type="submit" disabled={savingProfile} className="flex items-center gap-2">
-                  {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {savingProfile ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Save Changes
                 </Button>
               </div>
@@ -308,92 +325,103 @@ function ProfilePage() {
 
         {/* Change Password Card */}
         <Card className="border-border/60 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Key className="h-5 w-5 text-primary" />
-                Change Password
-              </CardTitle>
-              <CardDescription>Ensure your account remains secure with a strong password</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleChangePassword} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="curr-pass">Current Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="curr-pass"
-                        type={showCurrent ? "text" : "password"}
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrent(!showCurrent)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="new-pass">New Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="new-pass"
-                        type={showNew ? "text" : "password"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNew(!showNew)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="conf-pass">Confirm New Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="conf-pass"
-                        type={showConfirmNew ? "text" : "password"}
-                        value={confirmNewPassword}
-                        onChange={(e) => setConfirmNewPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmNew(!showConfirmNew)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showConfirmNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" />
+              Change Password
+            </CardTitle>
+            <CardDescription>
+              Ensure your account remains secure with a strong password
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="curr-pass">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="curr-pass"
+                      type={showCurrent ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrent(!showCurrent)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2">
-                  <Button type="submit" variant="secondary" disabled={changingPassword} className="flex items-center gap-2">
-                    {changingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Update Password
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-pass">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-pass"
+                      type={showNew ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew(!showNew)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="conf-pass">Confirm New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="conf-pass"
+                      type={showConfirmNew ? "text" : "password"}
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmNew(!showConfirmNew)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmNew ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={changingPassword}
+                  className="flex items-center gap-2"
+                >
+                  {changingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Update Password
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
         {/* Long-Term Memory Section */}
         <Card className="border-border/60 shadow-sm">
@@ -433,7 +461,11 @@ function ProfilePage() {
                 {memories.length > 0 && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                      >
                         Clear All
                       </Button>
                     </AlertDialogTrigger>
@@ -444,12 +476,16 @@ function ProfilePage() {
                           Clear all AI memories?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently delete all facts and preferences remembered about you. This action cannot be undone.
+                          This will permanently delete all facts and preferences remembered about
+                          you. This action cannot be undone.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearAllMemories} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction
+                          onClick={handleClearAllMemories}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
                           Clear All
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -466,7 +502,8 @@ function ProfilePage() {
               </div>
             ) : memories.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
-                No memories saved yet. When you chat with Manan AI, explicit facts and preferences you share will automatically appear here.
+                No memories saved yet. When you chat with Manan AI, explicit facts and preferences
+                you share will automatically appear here.
               </div>
             ) : (
               <div className="space-y-2">
@@ -518,7 +555,8 @@ function ProfilePage() {
                 <DialogHeader>
                   <DialogTitle>Add New AI Memory</DialogTitle>
                   <DialogDescription>
-                    Add a personal fact, preference, or context that Manan AI should remember for you.
+                    Add a personal fact, preference, or context that Manan AI should remember for
+                    you.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateMemory} className="space-y-4">
@@ -533,7 +571,11 @@ function ProfilePage() {
                     />
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAddMemoryOpen(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsAddMemoryOpen(false)}
+                    >
                       Cancel
                     </Button>
                     <Button type="submit" disabled={savingNewMemory || !newMemoryContent.trim()}>
@@ -550,9 +592,7 @@ function ProfilePage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Edit AI Memory</DialogTitle>
-                  <DialogDescription>
-                    Update this saved fact or preference.
-                  </DialogDescription>
+                  <DialogDescription>Update this saved fact or preference.</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleUpdateMemory} className="space-y-4">
                   <div className="space-y-2">

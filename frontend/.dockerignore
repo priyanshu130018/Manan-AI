@@ -1,0 +1,17 @@
+node_modules
+dist
+.output
+.git
+.gitignore
+*.log
+.env
+.env.*
+coverage
+.vite
+.cache
+.tanstack
+.wrangler
+.prettierrc
+.prettierignore
+README.md
+AGENTS.md

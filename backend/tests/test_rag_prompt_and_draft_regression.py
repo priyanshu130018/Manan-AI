@@ -127,8 +127,8 @@ async def test_rag_service_handles_latex_and_nested_json():
             history=[],
             document_ids=["doc-stats-1"],
             user_id="user-123",
-            provider="qwen",
-            model_name="qwen3.8-27b",
+            provider="ollama",
+            model_name="gpt-oss:120b",
         )
 
         assert "normal distribution" in ans

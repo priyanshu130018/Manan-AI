@@ -37,10 +37,7 @@ export async function signup(data: {
   return user;
 }
 
-export async function login(data: {
-  email: string;
-  password?: string;
-}): Promise<User> {
+export async function login(data: { email: string; password?: string }): Promise<User> {
   const res = await api.post<ApiResponse<User>>("/auth/login", data);
   const user = res.data?.data;
   if (!user) throw new Error("No user profile returned from login.");
@@ -51,10 +48,7 @@ export async function logout(): Promise<void> {
   await api.post("/auth/logout");
 }
 
-export async function updateProfile(data: {
-  name?: string;
-  mobile?: string;
-}): Promise<User> {
+export async function updateProfile(data: { name?: string; mobile?: string }): Promise<User> {
   const res = await api.patch<ApiResponse<User>>("/profile", data);
   if (!res.data?.data) throw new Error("Failed to update profile.");
   return res.data.data;

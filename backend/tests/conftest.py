@@ -11,9 +11,6 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 # Set isolated test environment variables
-test_tmp_dir = tempfile.mkdtemp()
-test_docs_dir = os.path.join(test_tmp_dir, "test_documents")
-
 os.environ["APP_NAME"] = "Manan AI Test"
 os.environ["ENV"] = "test"
 os.environ["HOST"] = "127.0.0.1"
@@ -29,21 +26,23 @@ os.environ["GOOGLE_REDIRECT_URI"] = "http://localhost:8000/auth/google/callback"
 os.environ["FRONTEND_URL"] = "http://localhost:5173"
 os.environ["LLM_PROVIDER"] = "gemini"
 os.environ["LLM_MODEL"] = "gemini-3.6-flash"
-os.environ["QWEN_API_KEY"] = "test-qwen-api-key"
-os.environ["QWEN_BASE_URL"] = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-os.environ["QWEN_MODEL"] = "qwen3.8-27b"
+os.environ["OLLAMA_API_KEY"] = "test-ollama-cloud-api-key"
+os.environ["OLLAMA_BASE_URL"] = "https://ollama.com"
+os.environ["OLLAMA_MODEL"] = "gpt-oss:120b"
 os.environ["CLOUDINARY_CLOUD_NAME"] = "test-cloud"
 os.environ["CLOUDINARY_API_KEY"] = "test-cloudinary-key"
 os.environ["CLOUDINARY_API_SECRET"] = "test-cloudinary-secret"
 os.environ["CLOUDINARY_FOLDER"] = "test-manan-ai"
+os.environ["CLOUDINARY_UPLOAD_PRESET"] = "test-preset"
 os.environ["EMBEDDING_PROVIDER"] = "local"
 os.environ["EMBEDDING_MODEL"] = "all-MiniLM-L6-v2"
 os.environ["EMBEDDING_DIMENSION"] = "384"
-os.environ["UPLOAD_DIR"] = test_docs_dir
 os.environ["MAX_UPLOAD_SIZE_MB"] = "50"
 os.environ["TOTAL_STORAGE_LIMIT_MB"] = "500"
 os.environ["CHUNK_SIZE"] = "1000"
 os.environ["CHUNK_OVERLAP"] = "200"
+os.environ["HF_API_TOKEN"] = "test_hf_token"
+os.environ["HF_OCR_MODEL"] = "Qwen/Qwen2.5-VL-72B-Instruct"
 os.environ["CORS_ALLOWED_ORIGINS"] = "http://localhost:5173,http://localhost:3000"
 
 from app.models.database import PostgresDatabase
@@ -380,7 +379,6 @@ def mock_llm(monkeypatch):
 
     monkeypatch.setattr("app.integrations.gemini.client.GeminiLLM.generate", mock.generate)
     monkeypatch.setattr("app.integrations.gemini.client.GeminiClient.generate_text", mock.generate_text)
-    monkeypatch.setattr("app.integrations.qwen.client.QwenClient.generate_text", mock.generate_text)
     return mock
 
 

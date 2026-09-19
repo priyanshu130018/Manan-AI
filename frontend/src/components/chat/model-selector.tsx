@@ -20,7 +20,7 @@ import { MODEL_OPTIONS } from "@/services/axios";
 
 interface ModelSelectorProps {
   currentModel: string;
-  onModelChange: (modelValue: string, provider: "gemini" | "qwen") => void;
+  onModelChange: (modelValue: string, provider: "gemini" | "ollama") => void;
   compact?: boolean;
 }
 
@@ -48,7 +48,7 @@ export function ModelSelector({ currentModel, onModelChange }: ModelSelectorProp
 
   const getModelDisplayLabel = (val: string): string => {
     if (data) {
-      const all = [...(data.gemini?.models ?? []), ...(data.qwen?.models ?? [])];
+      const all = [...(data.gemini?.models ?? []), ...(data.ollama?.models ?? [])];
       const match = all.find((m) => m.value === val);
       if (match) return match.label;
     }
@@ -61,9 +61,13 @@ export function ModelSelector({ currentModel, onModelChange }: ModelSelectorProp
   };
 
   const displayLabel = getModelDisplayLabel(currentModel);
-  const isQwenActive =
+  const isOllamaActive =
+    currentModel.toLowerCase().includes("gpt") ||
+    currentModel.toLowerCase().includes("oss") ||
+    currentModel.toLowerCase().includes("gemma") ||
     currentModel.toLowerCase().includes("qwen") ||
-    Boolean(data?.qwen?.models?.some((m) => m.value === currentModel));
+    currentModel.toLowerCase().includes("llama") ||
+    Boolean(data?.ollama?.models?.some((m) => m.value === currentModel));
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -80,14 +84,14 @@ export function ModelSelector({ currentModel, onModelChange }: ModelSelectorProp
                 variant="outline"
                 size="sm"
                 className={`h-8 gap-1.5 rounded-xl border-border bg-card/60 px-2.5 text-xs font-medium backdrop-blur transition-all hover:bg-card hover:text-foreground ${
-                  isQwenActive
+                  isOllamaActive
                     ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
                     : "border-primary/20 text-primary"
                 }`}
               >
                 {loading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : isQwenActive ? (
+                ) : isOllamaActive ? (
                   <Cpu className="h-3.5 w-3.5" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
@@ -145,22 +149,26 @@ export function ModelSelector({ currentModel, onModelChange }: ModelSelectorProp
 
           <DropdownMenuSeparator />
 
-          {/* Qwen Models Section */}
+          {/* Ollama Cloud Models Section */}
           <DropdownMenuGroup>
             <DropdownMenuLabel className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-foreground">
               <Cpu className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Alibaba Qwen</span>
+              <span>Ollama Cloud</span>
             </DropdownMenuLabel>
 
-            {data?.qwen?.available === false ? (
+            {data?.ollama?.available === false ? (
               <div className="mx-1 my-1 flex items-start gap-2 rounded-lg bg-destructive/10 p-2 text-xs text-destructive">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span className="leading-tight">{data.qwen.message}</span>
+                <span className="leading-tight">{data.ollama.message}</span>
               </div>
             ) : (
               (
-                data?.qwen?.models ?? [
-                  { value: "qwen3.8-27b", label: "Qwen 3.8 27B", provider: "qwen" },
+                data?.ollama?.models ?? [
+                  {
+                    value: "qwen3-coder:480b-cloud",
+                    label: "Qwen 3 Coder 480B (Ollama Cloud)",
+                    provider: "ollama",
+                  },
                 ]
               ).map((item) => (
                 <DropdownMenuItem
@@ -169,7 +177,9 @@ export function ModelSelector({ currentModel, onModelChange }: ModelSelectorProp
                   className="flex items-center justify-between rounded-lg px-2 py-1.5 text-xs cursor-pointer"
                 >
                   <span className="font-medium text-foreground">{item.label}</span>
-                  {currentModel === item.value && <Check className="h-3.5 w-3.5 text-emerald-500" />}
+                  {currentModel === item.value && (
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  )}
                 </DropdownMenuItem>
               ))
             )}
