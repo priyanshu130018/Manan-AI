@@ -32,7 +32,7 @@ export function UploadZone({
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
       className={cn(
-        "flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed px-6 py-16 text-center transition-all",
+        "flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed px-6 py-8 text-center transition-all",
         dragging
           ? "border-primary bg-primary/5 scale-[1.01]"
           : "border-border bg-card/60 hover:border-primary/40",

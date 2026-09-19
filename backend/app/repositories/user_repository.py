@@ -16,6 +16,18 @@ class UserRepository:
     def _row_to_entity(self, row: dict) -> UserEntity:
         c_at = row.get("created_at")
         u_at = row.get("updated_at")
+        preferred_model = row.get("preferred_model")
+        preferred_provider = row.get("preferred_provider", "gemini")
+
+        # Sanitize obsolete or legacy model values
+        if preferred_model not in {"gemini-3.6-flash", "qwen3.8-27b"}:
+            if preferred_model and "qwen" in str(preferred_model).lower():
+                preferred_model = "qwen3.8-27b"
+                preferred_provider = "qwen"
+            else:
+                preferred_model = "gemini-3.6-flash"
+                preferred_provider = "gemini"
+
         return UserEntity(
             id=str(row["id"]),
             name=str(row["name"]),
@@ -25,8 +37,8 @@ class UserRepository:
             auth_provider=str(row.get("auth_provider", "local")),
             google_subject=row.get("google_subject"),
             long_term_memory_enabled=bool(row.get("long_term_memory_enabled", True)),
-            preferred_model=row.get("preferred_model", "gemini-2.5-flash"),
-            preferred_provider=row.get("preferred_provider", "gemini"),
+            preferred_model=preferred_model,
+            preferred_provider=preferred_provider,
             created_at=c_at.timestamp() if isinstance(c_at, datetime) else float(c_at or 0.0),
             updated_at=u_at.timestamp() if isinstance(u_at, datetime) else float(u_at or 0.0),
         )
@@ -50,7 +62,7 @@ class UserRepository:
                 cur.execute(
                     """
                     INSERT INTO users (id, name, email, password_hash, mobile, auth_provider, google_subject, long_term_memory_enabled, preferred_model, preferred_provider, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, true, 'gemini-2.5-flash', 'gemini', %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, true, 'gemini-3.6-flash', 'gemini', %s, %s)
                     RETURNING id, name, email, password_hash, mobile, auth_provider, google_subject, long_term_memory_enabled, preferred_model, preferred_provider, created_at, updated_at;
                     """,
                     (uid, name.strip(), normalized_email, password_hash, mobile, auth_provider, google_subject, now, now),

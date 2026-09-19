@@ -13,11 +13,20 @@ import {
   Sparkle,
   LogIn,
   UserPlus,
+  Cpu,
+  User,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
@@ -27,7 +36,7 @@ import { useSessions } from "@/hooks/use-sessions";
 import { sendChatMessage, editChatMessage, regenerateChatMessage } from "@/services/chat";
 import { listDocuments } from "@/services/document";
 import { uploadDocument } from "@/services/upload";
-import { toFriendlyError } from "@/services/axios";
+import { readSettings, writeSettings, MODEL_OPTIONS, toFriendlyError } from "@/services/axios";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType, DocumentItem } from "@/types";
 
@@ -40,6 +49,7 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
     isTemporary,
     toggleTemporaryMode,
     appendMessage,
+    replaceActiveMessages,
     loadChatByNumber,
     newChat,
     createPersistentSessionFromDraft,
@@ -54,11 +64,33 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
   const [copiedId, setCopiedId] = useState(false);
   const [availableDocs, setAvailableDocs] = useState<DocumentItem[]>([]);
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [currentModel, setCurrentModel] = useState<string>(() => readSettings().model);
   const [rateLimitCountdown, setRateLimitCountdown] = useState<number | null>(null);
+  const [failedDraft, setFailedDraft] = useState<{ text: string; error: string } | null>(null);
+  const [inputDraft, setInputDraft] = useState<string>("");
+  const [pendingMessageText, setPendingMessageText] = useState<string | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const messages = activeSession?.messages ?? [];
   const chatNumber = activeSession?.chat_number;
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setCurrentModel(readSettings().model);
+    };
+    window.addEventListener("manan:settings", handleSettingsChange);
+    return () => window.removeEventListener("manan:settings", handleSettingsChange);
+  }, []);
+
+  const handleModelChange = (newModel: string) => {
+    setCurrentModel(newModel);
+    const settings = readSettings();
+    const opt = MODEL_OPTIONS.find((m) => m.value === newModel);
+    const newProvider = opt?.provider || settings.provider;
+    writeSettings({ ...settings, model: newModel, provider: newProvider });
+    const label = opt?.label || newModel;
+    toast.success(`Model switched to ${label}`);
+  };
 
   // Rate limit countdown interval
   useEffect(() => {
@@ -212,104 +244,58 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
       return;
     }
 
-    const isDraft = !activeSession?.chat_number && !isTemporary;
-
-    if (isDraft) {
-      const userMessage: ChatMessageType = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text,
-        createdAt: Date.now(),
-      };
-      appendMessage(activeSession?.id || "draft", userMessage);
-      setLoading(true);
-
-      try {
-        const response = await sendChatMessage(
-          null,
-          text,
-          selectedDocIds.length > 0 ? selectedDocIds : undefined,
-        );
-
-        const resChatNum = response?.chat_number || response?.chat_id;
-
-        appendMessage(activeSession?.id || "draft", {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: response?.response || "_No answer returned by the backend._",
-          citations: response?.citations || [],
-          createdAt: Date.now(),
-        });
-
-
-        if (resChatNum) {
-          await loadChatByNumber(resChatNum);
-          void navigate({
-            to: "/chat/$chatNumber",
-            params: { chatNumber: resChatNum },
-            replace: true,
-          });
-        }
-      } catch (error: any) {
-        const message = toFriendlyError(error);
-        if (error?.response?.status === 429 || error?.retryAfter) {
-          const sec = error.retryAfter ? Math.round(error.retryAfter) : 30;
-          setRateLimitCountdown(sec);
-        }
-        toast.error("AI service error", { description: message });
-        appendMessage(activeSession?.id || "draft", {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: message,
-          createdAt: Date.now(),
-          error: true,
-        });
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    const sessionId = activeId || activeSession?.id;
-    if (!sessionId) return;
-
-    const userMessage: ChatMessageType = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: text,
-      createdAt: Date.now(),
-    };
-    appendMessage(sessionId, userMessage);
+    const previousMessages = [...messages];
+    setPendingMessageText(text);
     setLoading(true);
+    setFailedDraft(null);
+
+    const isDraft = !activeSession?.chat_number && !isTemporary;
+    const sessionId = isDraft ? null : (activeId || activeSession?.id || null);
 
     try {
       const response = await sendChatMessage(
         sessionId,
         text,
         selectedDocIds.length > 0 ? selectedDocIds : undefined,
+        currentModel,
       );
-      appendMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response?.response || "_No answer returned by the backend._",
-        citations: response?.citations || [],
-        createdAt: Date.now(),
-      });
 
+      setPendingMessageText(null);
+      setFailedDraft(null);
+
+      const resChatNum = response?.chat_number || response?.chat_id;
+
+      if (response?.messages && response.messages.length > 0) {
+        const dbMsgs: ChatMessageType[] = response.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          citations: m.citations,
+          createdAt: m.created_at ? (typeof m.created_at === "number" && m.created_at < 1e11 ? m.created_at * 1000 : Number(m.created_at)) : Date.now(),
+        }));
+        replaceActiveMessages(dbMsgs);
+      }
+
+      if (isDraft && resChatNum) {
+        await loadChatByNumber(resChatNum);
+        void navigate({
+          to: "/chat/$chatNumber",
+          params: { chatNumber: resChatNum },
+          replace: true,
+        });
+      } else if (!isDraft) {
+        await refreshActiveSession();
+      }
     } catch (error: any) {
+      setPendingMessageText(null);
+      replaceActiveMessages(previousMessages);
       const message = toFriendlyError(error);
       if (error?.response?.status === 429 || error?.retryAfter) {
         const sec = error.retryAfter ? Math.round(error.retryAfter) : 30;
         setRateLimitCountdown(sec);
       }
-      toast.error("AI service error", { description: message });
-      appendMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: message,
-        createdAt: Date.now(),
-        error: true,
-      });
+      setFailedDraft({ text, error: message });
+      toast.error("The response could not be generated", { description: message });
     } finally {
       setLoading(false);
     }
@@ -317,13 +303,45 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
 
   const handleEditMessage = async (messageId: string, newContent: string) => {
     if (!user) return;
+
+    // Snapshot existing messages before optimistic update for safe rollback on failure
+    const previousMessages = [...messages];
+
+    // Optimistically update the message in frontend state and drop downstream answers
+    const targetIdx = messages.findIndex((m) => m.id === messageId);
+    if (targetIdx !== -1) {
+      const updatedMessages = messages.slice(0, targetIdx + 1).map((m, idx) =>
+        idx === targetIdx ? { ...m, content: newContent } : m,
+      );
+      replaceActiveMessages(updatedMessages);
+    }
+
     setLoading(true);
     try {
-      await editChatMessage(messageId, newContent);
-      await refreshActiveSession();
+      const response = await editChatMessage(messageId, newContent, currentModel);
+      if (response?.messages && response.messages.length > 0) {
+        const dbMsgs: ChatMessageType[] = response.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          citations: m.citations,
+          createdAt: m.created_at ? (typeof m.created_at === "number" && m.created_at < 1e11 ? m.created_at * 1000 : Number(m.created_at)) : Date.now(),
+        }));
+        replaceActiveMessages(dbMsgs);
+      } else {
+        await refreshActiveSession();
+      }
       toast.success("Message updated.");
     } catch (err: any) {
-      toast.error("Failed to edit message", { description: toFriendlyError(err) });
+      // Rollback to original conversation state so nothing is corrupted or lost
+      replaceActiveMessages(previousMessages);
+      await refreshActiveSession();
+      const friendly = toFriendlyError(err);
+      toast.error("The response could not be generated for edited message", {
+        description: friendly,
+        duration: 8000,
+      });
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -331,13 +349,43 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
 
   const handleRegenerateMessage = async (messageId: string) => {
     if (!user) return;
+
+    // Snapshot existing messages before optimistic update for safe rollback on failure
+    const previousMessages = [...messages];
+
+    // Optimistically remove the assistant message being regenerated and any downstream messages
+    const targetIdx = messages.findIndex((m) => m.id === messageId);
+    if (targetIdx !== -1) {
+      const truncatedMessages = messages.slice(0, targetIdx);
+      replaceActiveMessages(truncatedMessages);
+    }
+
     setLoading(true);
     try {
-      await regenerateChatMessage(messageId);
-      await refreshActiveSession();
+      const response = await regenerateChatMessage(messageId, currentModel);
+      if (response?.messages && response.messages.length > 0) {
+        const dbMsgs: ChatMessageType[] = response.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          citations: m.citations,
+          createdAt: m.created_at ? (typeof m.created_at === "number" && m.created_at < 1e11 ? m.created_at * 1000 : Number(m.created_at)) : Date.now(),
+        }));
+        replaceActiveMessages(dbMsgs);
+      } else {
+        await refreshActiveSession();
+      }
       toast.success("Response regenerated.");
     } catch (err: any) {
-      toast.error("Failed to regenerate response", { description: toFriendlyError(err) });
+      // Rollback to original conversation state
+      replaceActiveMessages(previousMessages);
+      await refreshActiveSession();
+      const friendly = toFriendlyError(err);
+      toast.error("Unable to regenerate response", {
+        description: friendly,
+        duration: 8000,
+      });
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -477,6 +525,63 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                   </TooltipContent>
                 </Tooltip>
 
+                {/* Model Selector Dropdown */}
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 rounded-xl border-border/80 bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted"
+                          aria-label="Change AI Model"
+                        >
+                          <Cpu className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="max-w-[100px] truncate sm:max-w-[140px]">
+                            {MODEL_OPTIONS.find((m) => m.value === currentModel)?.label || currentModel}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Change Model</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Gemini Models
+                    </div>
+                    {MODEL_OPTIONS.filter((m) => m.provider === "gemini").map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => handleModelChange(opt.value)}
+                        className={cn(
+                          "flex items-center justify-between text-xs cursor-pointer",
+                          currentModel === opt.value && "font-semibold text-primary",
+                        )}
+                      >
+                        <span>{opt.label}</span>
+                        {currentModel === opt.value && <Check className="h-3.5 w-3.5 text-primary" />}
+                      </DropdownMenuItem>
+                    ))}
+                    <div className="my-1 border-t border-border/50" />
+                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Qwen Models
+                    </div>
+                    {MODEL_OPTIONS.filter((m) => m.provider === "qwen").map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => handleModelChange(opt.value)}
+                        className={cn(
+                          "flex items-center justify-between text-xs cursor-pointer",
+                          currentModel === opt.value && "font-semibold text-primary",
+                        )}
+                      >
+                        <span>{opt.label}</span>
+                        {currentModel === opt.value && <Check className="h-3.5 w-3.5 text-primary" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 <DocumentSelector
                   documents={availableDocs}
                   selectedDocIds={selectedDocIds}
@@ -591,10 +696,73 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
               />
             ))}
 
+            {/* Pending optimistic message bubble while loading */}
+            {pendingMessageText && (
+              <div className="group flex justify-end gap-3 opacity-90">
+                <div className="flex max-w-[85%] flex-col items-end gap-1.5">
+                  <div className="rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-primary-foreground shadow-soft">
+                    {pendingMessageText}
+                  </div>
+                </div>
+                <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-secondary text-secondary-foreground">
+                  <User className="h-4 w-4" />
+                </div>
+              </div>
+            )}
+
             {loading && <TypingIndicator />}
             <div ref={bottomRef} />
           </div>
         </div>
+
+        {/* Failed Draft Retry / Edit Box */}
+        {failedDraft && (
+          <div className="border-t border-destructive/20 bg-destructive/5 px-4 py-2.5 sm:px-6">
+            <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>Generation failed</span>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">{failedDraft.error}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-border"
+                  onClick={() => {
+                    setInputDraft(failedDraft.text);
+                    setFailedDraft(null);
+                  }}
+                >
+                  Edit Draft
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                  onClick={() => {
+                    const text = failedDraft.text;
+                    setFailedDraft(null);
+                    void handleSend(text);
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => setFailedDraft(null)}
+                  title="Dismiss"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Fixed Bottom Chat Input */}
         <div className="border-t border-border/70 bg-background/95 pb-2 pt-1">
@@ -609,6 +777,10 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                 toast.info("Please sign in to start chatting.");
                 navigate({ to: "/login", search: { redirect: "/" } });
               }}
+              currentModel={currentModel}
+              onModelChange={(m, p) => handleModelChange(m)}
+              draftText={inputDraft}
+              onDraftTextChange={setInputDraft}
               placeholder={
                 !user
                   ? "Sign in to start chatting"
@@ -617,6 +789,7 @@ export function ChatPage({ chatNumberParam }: { chatNumberParam?: string }) {
                   : "Ask anything…"
               }
             />
+
           </div>
         </div>
       </div>

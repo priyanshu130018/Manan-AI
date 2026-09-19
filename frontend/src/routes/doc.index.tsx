@@ -195,7 +195,7 @@ function DocumentsPage() {
         );
 
         toast.success(`'${result.filename}' indexed successfully`, {
-          description: `${result.chunks} chunks stored in ChromaDB & PostgreSQL.`,
+          description: `${result.chunks} chunks stored in PostgreSQL pgvector.`,
         });
         void load();
       } catch (error) {
@@ -301,7 +301,7 @@ function DocumentsPage() {
           <DialogHeader>
             <DialogTitle>Upload Documents</DialogTitle>
             <DialogDescription>
-              Add study materials for RAG retrieval. Files are chunked and embedded in ChromaDB.
+              Add study materials for RAG retrieval. Files are chunked and embedded in PostgreSQL pgvector.
             </DialogDescription>
           </DialogHeader>
 

@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { MananLogo } from "@/components/common/manan-logo";
 import { useAuth } from "@/hooks/use-auth";
+import { API_BASE_URL } from "@/services/axios";
 
 interface LoginSearch {
   redirect?: string;
@@ -53,18 +55,13 @@ function LoginPage() {
 
   const getSafeDestination = () => {
     if (search.redirect && search.redirect.startsWith("/") && !search.redirect.startsWith("//")) {
-      let dest = search.redirect;
-      if (dest.startsWith("/v2")) {
-        dest = dest.substring(3) || "/";
-      }
-      return dest;
+      return search.redirect;
     }
     return "/";
   };
 
   const handleGoogleLogin = () => {
-    const apiBase = (import.meta.env.VITE_API_BASE_URL as string) || "http://localhost:8000";
-    window.location.href = `${apiBase.replace(/\/+$/, "")}/auth/google/login`;
+    window.location.href = `${API_BASE_URL.replace(/\/+$/, "")}/auth/google/login`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,9 +87,12 @@ function LoginPage() {
     <div className="flex min-h-screen w-full items-center justify-center bg-background px-4 py-8">
       <Card className="w-full max-w-md border-border/60 shadow-lg">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-            <Sparkle className="h-6 w-6" />
-          </div>
+          <MananLogo
+            size="xl"
+            iconOnly
+            ariaLabel="Manan AI home"
+            className="mx-auto transition-transform hover:scale-105"
+          />
           <CardTitle className="text-2xl font-bold tracking-tight">Manan AI</CardTitle>
           <CardDescription className="text-sm">
             Sign in to access your personal AI assistant and documents

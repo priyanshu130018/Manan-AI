@@ -13,7 +13,7 @@ class UserEntity:
     auth_provider: str = "local"
     google_subject: Optional[str] = None
     long_term_memory_enabled: bool = True
-    preferred_model: Optional[str] = "gemini-2.5-flash"
+    preferred_model: Optional[str] = "gemini-3.6-flash"
     preferred_provider: Optional[str] = "gemini"
     created_at: Union[datetime, float] = 0.0
     updated_at: Union[datetime, float] = 0.0

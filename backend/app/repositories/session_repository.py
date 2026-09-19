@@ -16,10 +16,18 @@ def _parse_json(val: Any, default: Any = None) -> Any:
         return default
     if isinstance(val, (list, dict)):
         return val
-    try:
-        return json.loads(val)
-    except Exception:
-        return default
+    if isinstance(val, str):
+        val_str = val.strip()
+        if not val_str:
+            return default
+        try:
+            res = json.loads(val_str)
+            if isinstance(res, str):
+                res = json.loads(res)
+            return res
+        except Exception:
+            return default
+    return default
 
 
 def _generate_chat_number() -> str:
@@ -261,6 +269,36 @@ class SessionRepository:
                 deleted = cur.fetchall()
                 return len(deleted)
 
+    async def delete_messages_after_message(self, session_id: str, message_id: str) -> int:
+        """Deletes all messages in the session that occurred after the specified message in conversation order."""
+        with self._db.get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, created_at FROM messages WHERE session_id = %s ORDER BY created_at ASC;",
+                    (session_id,),
+                )
+                rows = cur.fetchall()
+                
+                target_idx = None
+                for idx, r in enumerate(rows):
+                    if str(r["id"]) == str(message_id):
+                        target_idx = idx
+                        break
+                
+                if target_idx is None:
+                    return 0
+                
+                to_delete_ids = [str(r["id"]) for r in rows[target_idx + 1:]]
+                if not to_delete_ids:
+                    return 0
+                
+                cur.execute(
+                    "DELETE FROM messages WHERE id = ANY(%s) RETURNING id;",
+                    (to_delete_ids,),
+                )
+                deleted = cur.fetchall()
+                return len(deleted)
+
     async def get_summary(self, session_id: str) -> str:
         with self._db.get_connection() as conn:
             with conn.cursor() as cur:
@@ -298,5 +336,3 @@ class SessionRepository:
                     cur.execute("DELETE FROM messages WHERE session_id = %s AND created_at < %s;", (session_id, cutoff))
 
 
-# Backward compatibility alias
-SQLiteSessionRepository = SessionRepository

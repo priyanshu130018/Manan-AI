@@ -186,27 +186,40 @@ async def google_callback(
 ):
     """Handle Google OAuth 2.0 authorization callback and set session cookie."""
     settings = get_settings()
-    frontend_target = f"{settings.frontend_url.rstrip('/')}/"
+    base_frontend = settings.frontend_url.rstrip('/')
+    frontend_target = f"{base_frontend}/"
 
     if error:
         logger.warning("Google OAuth denied: %s", error)
-        return RedirectResponse(url=f"{settings.frontend_url.rstrip('/')}/login?error={error}")
+        return RedirectResponse(
+            url=f"{base_frontend}/login?error={error}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     saved_state = request.cookies.get("oauth_state")
     if not saved_state or not state or saved_state != state:
         logger.warning("OAuth state mismatch or missing")
-        return RedirectResponse(url=f"{settings.frontend_url.rstrip('/')}/login?error=invalid_state")
+        return RedirectResponse(
+            url=f"{base_frontend}/login?error=invalid_state",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     if not code:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing authorization code.")
 
     try:
         user, token = await auth_service.handle_google_callback(code)
-        response = RedirectResponse(url=frontend_target, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        response = RedirectResponse(
+            url=frontend_target,
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
         response.delete_cookie(key="oauth_state", path="/", httponly=True, samesite="lax")
         _set_auth_cookie(response, token)
         return response
     except Exception as e:
         logger.error("Google callback failed: %s", str(e))
-        return RedirectResponse(url=f"{settings.frontend_url.rstrip('/')}/login?error=oauth_failed")
+        return RedirectResponse(
+            url=f"{base_frontend}/login?error=oauth_failed",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 

@@ -20,6 +20,10 @@ class PostgresDatabase:
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
+                settings = get_settings()
+                cls._instance._db_url = settings.database_url
+                cls._instance._db_lock = threading.RLock()
+                cls._instance._initialized = False
                 cls._instance._init_db()
             return cls._instance
 
@@ -83,8 +87,6 @@ class PostgresDatabase:
             conn.close()
 
 
-# Aliases
-SQLiteDatabase = PostgresDatabase
 Database = PostgresDatabase
 
 

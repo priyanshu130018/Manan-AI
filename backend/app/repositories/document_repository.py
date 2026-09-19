@@ -15,8 +15,8 @@ class DocumentRepository:
             with conn.cursor() as cur:
                 cur.execute("""
                 INSERT INTO documents 
-                (document_id, user_id, original_filename, stored_filename, mime_type, size_bytes, status, created_at, page_count, chunk_count, source_type, processing_error)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (document_id, user_id, original_filename, stored_filename, mime_type, size_bytes, status, created_at, page_count, chunk_count, source_type, processing_error, cloudinary_public_id, cloudinary_secure_url, cloudinary_resource_type)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (document_id) DO UPDATE SET
                     user_id = EXCLUDED.user_id,
                     original_filename = EXCLUDED.original_filename,
@@ -28,7 +28,10 @@ class DocumentRepository:
                     page_count = EXCLUDED.page_count,
                     chunk_count = EXCLUDED.chunk_count,
                     source_type = EXCLUDED.source_type,
-                    processing_error = EXCLUDED.processing_error;
+                    processing_error = EXCLUDED.processing_error,
+                    cloudinary_public_id = EXCLUDED.cloudinary_public_id,
+                    cloudinary_secure_url = EXCLUDED.cloudinary_secure_url,
+                    cloudinary_resource_type = EXCLUDED.cloudinary_resource_type;
                 """, (
                     document.document_id,
                     document.user_id,
@@ -42,6 +45,9 @@ class DocumentRepository:
                     document.chunk_count,
                     document.source_type.value,
                     document.processing_error,
+                    document.cloudinary_public_id,
+                    document.cloudinary_secure_url,
+                    document.cloudinary_resource_type,
                 ))
 
     def _row_to_entity(self, row: dict) -> DocumentEntity:
@@ -59,6 +65,9 @@ class DocumentRepository:
             chunk_count=row["chunk_count"],
             source_type=SourceType(row["source_type"]),
             processing_error=row["processing_error"],
+            cloudinary_public_id=row.get("cloudinary_public_id"),
+            cloudinary_secure_url=row.get("cloudinary_secure_url"),
+            cloudinary_resource_type=row.get("cloudinary_resource_type"),
         )
 
     async def get_by_id(self, document_id: str, user_id: str | None = None) -> DocumentEntity | None:
@@ -134,13 +143,16 @@ class DocumentRepository:
                         ),
                     )
 
-    async def search_fts(self, query: str, document_ids: list[str] | None = None, limit: int = 10) -> list[DocumentChunk]:
+    async def search_fts(self, query: str, document_ids: list[str] | None = None, user_id: str | None = None, limit: int = 10) -> list[DocumentChunk]:
         if not query or not query.strip():
             return []
         with self._db._db_lock, self._db.get_connection() as conn:
             with conn.cursor() as cur:
                 conditions = ["to_tsvector('english', text) @@ plainto_tsquery('english', %s)"]
                 params: list = [query]
+                if user_id:
+                    conditions.append("user_id = %s")
+                    params.append(user_id)
                 if document_ids:
                     clean_ids = [d.strip() for d in document_ids if d and d.strip()]
                     if clean_ids:
@@ -175,11 +187,13 @@ class DocumentRepository:
                     )
                 return results
 
-    async def delete_chunks_fts(self, document_id: str) -> None:
+    async def delete_chunks_fts(self, document_id: str, user_id: str | None = None) -> None:
         with self._db._db_lock, self._db.get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM document_chunks WHERE document_id = %s;", (document_id,))
+                if user_id:
+                    cur.execute("DELETE FROM document_chunks WHERE document_id = %s AND user_id = %s;", (document_id, user_id))
+                else:
+                    cur.execute("DELETE FROM document_chunks WHERE document_id = %s;", (document_id,))
 
 
-# Backward compatibility alias
-SQLiteDocumentRepository = DocumentRepository
+

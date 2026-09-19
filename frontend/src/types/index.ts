@@ -56,6 +56,15 @@ export interface ChatResponse {
   session_id?: string;
   chat_number?: string;
   chat_id?: string;
+  user_message_id?: string;
+  assistant_message_id?: string;
+  messages?: {
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    citations?: any[];
+    created_at?: number;
+  }[];
   mode?: string;
   intent?: string;
 }
@@ -86,6 +95,7 @@ export interface UploadResult {
 
 export interface AppSettings {
   model: string;
+  provider?: string;
   memoryEnabled: boolean;
 }
 

@@ -1,3 +1,4 @@
+from typing import Optional
 from app.models.schemas.base import ApiResponse, BaseSchema
 
 
@@ -11,7 +12,8 @@ class DocumentItem(BaseSchema):
     status: str = "ready"
     source_type: str = "pdf"
     created_at: float = 0.0
-    processing_error: str | None = None
+    processing_error: Optional[str] = None
+    cloudinary_secure_url: Optional[str] = None
 
 
 class DocumentListResponse(ApiResponse[list[DocumentItem]]):
@@ -25,6 +27,7 @@ class UploadData(BaseSchema):
     page_count: int = 0
     source_type: str = "pdf"
     status: str = "ready"
+    cloudinary_secure_url: Optional[str] = None
 
 
 class UploadResponse(ApiResponse[UploadData]):

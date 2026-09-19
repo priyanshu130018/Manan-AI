@@ -46,12 +46,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MananLogo } from "@/components/common/manan-logo";
 import { useAuth } from "@/hooks/use-auth";
 import { useSessions } from "@/hooks/use-sessions";
 import { getStorageUsage } from "@/services/document";
@@ -145,23 +141,22 @@ export function SidebarContentPanel({
     <TooltipProvider delayDuration={150}>
       <div
         className={cn(
-          "flex h-full flex-col bg-sidebar text-sidebar-foreground transition-all duration-200",
+          "flex h-full min-h-0 flex-col overflow-hidden bg-sidebar text-sidebar-foreground transition-all duration-200",
           collapsed ? "items-center px-2 py-3 gap-3" : "p-3 gap-3",
         )}
       >
         {/* Brand Header */}
         {collapsed ? (
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex shrink-0 flex-col items-center gap-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
+                <MananLogo
+                  size="lg"
+                  iconOnly
+                  ariaLabel="Manan AI home"
                   onClick={handleBrandClick}
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-105"
-                  aria-label="Manan AI — Start new chat"
-                >
-                  <Sparkle className="h-5 w-5" />
-                </button>
+                  className="transition-transform hover:scale-105"
+                />
               </TooltipTrigger>
               <TooltipContent side="right">Manan AI</TooltipContent>
             </Tooltip>
@@ -184,22 +179,14 @@ export function SidebarContentPanel({
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-between px-2 pt-1">
-            <button
-              type="button"
+          <div className="flex shrink-0 items-center justify-between px-2 pt-1">
+            <MananLogo
+              size="default"
+              showWordmark
+              ariaLabel="Manan AI home"
               onClick={handleBrandClick}
-              className="flex items-center gap-2.5 text-left transition-opacity hover:opacity-80 focus:outline-none"
-              aria-label="Manan AI — Start new chat"
-            >
-              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                <Sparkle className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                  Manan AI
-                </p>
-              </div>
-            </button>
+              className="px-0 transition-opacity hover:opacity-80"
+            />
 
             {onToggleCollapse && (
               <Button
@@ -222,7 +209,7 @@ export function SidebarContentPanel({
               <Button
                 size="icon"
                 variant="outline"
-                className="h-9 w-9 rounded-xl border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className="h-9 w-9 shrink-0 rounded-xl border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 onClick={handleNewChatClick}
                 aria-label="New chat"
               >
@@ -234,7 +221,7 @@ export function SidebarContentPanel({
         ) : (
           <Button
             variant="outline"
-            className="w-full justify-start gap-2 rounded-xl border-sidebar-border bg-sidebar-accent/40 font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="w-full shrink-0 justify-start gap-2 rounded-xl border-sidebar-border bg-sidebar-accent/40 font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             onClick={handleNewChatClick}
           >
             <Plus className="h-4 w-4" />
@@ -243,7 +230,7 @@ export function SidebarContentPanel({
         )}
 
         {/* Primary Navigation */}
-        <nav className={cn("space-y-1 w-full", collapsed && "flex flex-col items-center")}>
+        <nav className={cn("space-y-1 w-full shrink-0", collapsed && "flex flex-col items-center")}>
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -280,17 +267,16 @@ export function SidebarContentPanel({
           )}
         </nav>
 
-
         {/* Chat History List (Only for Authenticated Users in Expanded mode) */}
-        {!collapsed && user && (
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5 border-t border-sidebar-border pt-2.5">
-            <div className="flex items-center justify-between px-2">
+        {!collapsed && user ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 border-t border-sidebar-border pt-2.5 overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between px-2">
               <span className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
                 Chat History
               </span>
             </div>
 
-            <ScrollArea className="min-h-0 flex-1">
+            <ScrollArea className="min-h-0 flex-1 h-full">
               <div className="space-y-0.5 pr-2">
                 {sessions.map((session) => {
                   const isActive = session.id === activeId;
@@ -374,14 +360,13 @@ export function SidebarContentPanel({
               </div>
             </ScrollArea>
           </div>
+        ) : (
+          <div className="flex-1" />
         )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
 
         {/* Storage Capacity Indicator (Authenticated + Expanded mode only) */}
         {!collapsed && user && storage && (
-          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2.5 text-xs">
+          <div className="shrink-0 rounded-xl border border-sidebar-border bg-sidebar-accent/30 p-2.5 text-xs">
             <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium">
                 <HardDrive className="h-3.5 w-3.5" /> Storage
@@ -395,7 +380,7 @@ export function SidebarContentPanel({
         )}
 
         {/* Footer Navigation (Profile + Settings) */}
-        <div className={cn("w-full border-t border-sidebar-border pt-2 space-y-1", collapsed && "flex flex-col items-center")}>
+        <div className={cn("w-full shrink-0 border-t border-sidebar-border pt-2 space-y-1", collapsed && "flex flex-col items-center")}>
           {/* Profile (Only for Authenticated Users) */}
           {user && (
             <>

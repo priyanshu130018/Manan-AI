@@ -1,23 +1,23 @@
-from fastapi import APIRouter, File, UploadFile, Depends
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, UploadFile, Depends, status
+from fastapi.responses import RedirectResponse
 from app.api.dependencies import get_document_service
 from app.api.dependencies.auth import get_current_user
 from app.models.entities.user import UserEntity
 from app.services.document_service import DocumentService
 from app.models.schemas.base import ApiResponse
-from app.models.schemas.document import DocumentItem, DocumentListResponse, UploadResponse, UploadData
+from app.models.schemas.document import DocumentItem, UploadData
 
 router = APIRouter(tags=["Documents"])
 
 
-@router.post("/doc/upload", response_model=UploadResponse)
+@router.post("/doc/upload", response_model=ApiResponse[UploadData])
 async def upload_document(
     file: UploadFile = File(...),
     current_user: UserEntity = Depends(get_current_user),
     doc_svc: DocumentService = Depends(get_document_service),
-) -> UploadResponse:
+) -> ApiResponse[UploadData]:
     doc = await doc_svc.ingest_document(file, user_id=current_user.id)
-    return UploadResponse(
+    return ApiResponse(
         success=True,
         message=f"'{doc.original_filename}' uploaded and indexed successfully.",
         data=UploadData(
@@ -27,15 +27,16 @@ async def upload_document(
             page_count=doc.page_count,
             source_type=doc.source_type.value,
             status=doc.status.value,
+            cloudinary_secure_url=doc.cloudinary_secure_url,
         ),
     )
 
 
-@router.get("/doc", response_model=DocumentListResponse)
+@router.get("/doc", response_model=ApiResponse[list[DocumentItem]])
 async def list_documents(
     current_user: UserEntity = Depends(get_current_user),
     doc_svc: DocumentService = Depends(get_document_service),
-) -> DocumentListResponse:
+) -> ApiResponse[list[DocumentItem]]:
     docs = await doc_svc.list_documents(user_id=current_user.id)
     items = [
         DocumentItem(
@@ -49,10 +50,11 @@ async def list_documents(
             source_type=d.source_type.value,
             created_at=d.created_at,
             processing_error=d.processing_error,
+            cloudinary_secure_url=d.cloudinary_secure_url,
         )
         for d in docs
     ]
-    return DocumentListResponse(
+    return ApiResponse(
         success=True,
         message=f"Retrieved {len(items)} documents.",
         data=items,
@@ -78,12 +80,11 @@ async def get_document_file(
     current_user: UserEntity = Depends(get_current_user),
     doc_svc: DocumentService = Depends(get_document_service),
 ):
-    doc = await doc_svc.get_document(document_id, user_id=current_user.id)
-    file_path = await doc_svc.get_file_path(document_id, user_id=current_user.id)
-    return FileResponse(
-        path=str(file_path),
-        media_type=doc.mime_type or "application/octet-stream",
-        filename=doc.original_filename,
+    """Securely deliver uploaded document file for the authenticated user via Cloudinary redirect."""
+    delivery_url = await doc_svc.get_file_delivery_url(document_id, user_id=current_user.id)
+    return RedirectResponse(
+        url=delivery_url,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
     )
 
 
@@ -108,6 +109,7 @@ async def get_document(
             source_type=doc.source_type.value,
             created_at=doc.created_at,
             processing_error=doc.processing_error,
+            cloudinary_secure_url=doc.cloudinary_secure_url,
         ),
     )
 

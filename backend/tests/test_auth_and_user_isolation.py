@@ -89,3 +89,51 @@ def test_user_session_and_memory_isolation(client):
     b_by_id = client.get(f"/sessions/{session_id}")
     assert b_by_id.status_code == 404
 
+
+def test_google_oauth_callback_success_redirect():
+    from unittest.mock import patch, AsyncMock
+    from app.api.routes.auth import get_auth_service
+
+    google_user = UserEntity(
+        id="google-user-123",
+        name="Google Test User",
+        email="google@example.com",
+        auth_provider="google",
+        google_subject="sub-12345",
+    )
+
+    mock_auth_svc = AsyncMock()
+    mock_auth_svc.handle_google_callback.return_value = (google_user, "mock-google-token-xyz")
+
+    app.dependency_overrides[get_auth_service] = lambda: mock_auth_svc
+
+    try:
+        with TestClient(app) as test_client:
+            test_client.cookies.set("oauth_state", "valid-oauth-state-123")
+            res = test_client.get(
+                "/auth/google/callback?code=valid-code&state=valid-oauth-state-123",
+                follow_redirects=False,
+            )
+            settings = get_settings()
+            expected_url = f"{settings.frontend_url.rstrip('/')}/"
+            assert res.status_code == 303
+            assert res.headers.get("location") == expected_url
+            assert "access_token" in res.cookies
+            assert res.cookies["access_token"] == "mock-google-token-xyz"
+    finally:
+        app.dependency_overrides.pop(get_auth_service, None)
+
+
+def test_google_oauth_callback_invalid_state_redirect():
+    with TestClient(app) as test_client:
+        test_client.cookies.set("oauth_state", "expected-state")
+        res = test_client.get(
+            "/auth/google/callback?code=valid-code&state=mismatched-state",
+            follow_redirects=False,
+        )
+        settings = get_settings()
+        expected_error_url = f"{settings.frontend_url.rstrip('/')}/login?error=invalid_state"
+        assert res.status_code == 303
+        assert res.headers.get("location") == expected_error_url
+
+

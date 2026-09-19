@@ -9,10 +9,12 @@ async def health_check():
     settings = get_settings()
     return {
         "success": True,
-        "status": "healthy",
+        "status": "ok",
+        "app_status": "healthy",
         "app_name": settings.app_name,
         "env": settings.env,
-        "gemini_model": settings.gemini_model,
+        "llm_provider": settings.llm_provider,
+        "llm_model": settings.llm_model,
+        "embedding_provider": settings.embedding_provider,
         "embedding_model": settings.embedding_model,
     }
-

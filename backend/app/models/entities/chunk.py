@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 
 @dataclass
@@ -10,5 +11,7 @@ class DocumentChunk:
     chunk_index: int
     text: str
     source_type: str = "pdf"
-    heading: str | None = None
+    heading: Optional[str] = None
     score: float = 0.0
+    embedding: Optional[list[float]] = None
+    metadata: dict[str, Any] = field(default_factory=dict)

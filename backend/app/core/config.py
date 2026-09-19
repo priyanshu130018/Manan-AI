@@ -1,73 +1,102 @@
 import os
 from functools import lru_cache
 from pathlib import Path
-from pydantic import Field
+from typing import Optional
+from pydantic import Field, ValidationError as PydanticValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-def get_version_root() -> Path:
+
+def get_project_root() -> Path:
     current = Path(__file__).resolve()
-    # v2/backend/app/core/config.py -> parents[3] is v2
+    # backend/app/core/config.py -> parents[3] is project root
     return current.parents[3]
 
 
-VERSION_ROOT = get_version_root()
-ENV_FILE = str(VERSION_ROOT / ".env")
+PROJECT_ROOT = get_project_root()
+ENV_FILE = str(PROJECT_ROOT / ".env")
 
 
 class Settings(BaseSettings):
-    app_name: str = Field(default="Manan AI", alias="APP_NAME")
-    env: str = Field(default="development", alias="ENV")
-    host: str = Field(default="0.0.0.0", alias="HOST")
-    port: int = Field(default=8000, alias="PORT")
+    # Core Application
+    app_name: str = Field(alias="APP_NAME")
+    env: str = Field(alias="ENV")
+    host: str = Field(alias="HOST")
+    port: int = Field(alias="PORT")
 
-    database_url: str = Field(
-        default="postgresql://postgres:sql0000@localhost:5432/manan_ai",
-        alias="DATABASE_URL",
-    )
-    jwt_secret_key: str = Field(
-        default="manan-ai-super-secret-jwt-key-for-local-dev-change-in-prod",
-        alias="JWT_SECRET_KEY",
-    )
-    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    access_token_expire_minutes: int = Field(default=1440, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
-    refresh_token_expire_days: int = Field(default=7, alias="REFRESH_TOKEN_EXPIRE_DAYS")
-    session_expiry_days: int = Field(default=7, alias="SESSION_EXPIRY_DAYS")
+    # PostgreSQL Database (with pgvector)
+    database_url: str = Field(alias="DATABASE_URL")
 
-    google_api_key: str = Field(default="", alias="GOOGLE_API_KEY")
-    google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
-    google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str = Field(
-        default="http://localhost:8000/auth/google/callback",
-        alias="GOOGLE_REDIRECT_URI",
-    )
-    frontend_url: str = Field(
-        default="http://localhost:8080/v2",
-        alias="FRONTEND_URL",
-    )
+    # Authentication & Security
+    jwt_secret_key: str = Field(alias="JWT_SECRET_KEY")
+    jwt_algorithm: str = Field(alias="JWT_ALGORITHM")
+    access_token_expire_minutes: int = Field(alias="ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_expire_days: int = Field(alias="REFRESH_TOKEN_EXPIRE_DAYS")
+    session_expiry_days: int = Field(alias="SESSION_EXPIRY_DAYS")
 
-    llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
-    llm_model: str = Field(default="gemini-3.6-flash", alias="LLM_MODEL")
-    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
-    ollama_model: str = Field(default="llama3.2:3b", alias="OLLAMA_MODEL")
+    # Gemini & Google Integration
+    google_api_key: str = Field(alias="GOOGLE_API_KEY")
+    google_client_id: Optional[str] = Field(default=None, alias="GOOGLE_CLIENT_ID")
+    google_client_secret: Optional[str] = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    google_redirect_uri: str = Field(alias="GOOGLE_REDIRECT_URI")
+    frontend_url: str = Field(alias="FRONTEND_URL")
 
-    embedding_provider: str = Field(default="local", alias="EMBEDDING_PROVIDER")
-    embedding_model: str = Field(default="gemini-embedding-001", alias="EMBEDDING_MODEL")
+    # LLM Provider Configuration
+    llm_provider: str = Field(alias="LLM_PROVIDER")
+    llm_model: str = Field(alias="LLM_MODEL")
+    qwen_api_key: Optional[str] = Field(default=None, alias="QWEN_API_KEY")
+    qwen_base_url: Optional[str] = Field(default=None, alias="QWEN_BASE_URL")
+    qwen_model: Optional[str] = Field(default="qwen3.8-27b", alias="QWEN_MODEL")
 
-    data_dir: str = Field(default="./data", alias="DATA_DIR")
-    chroma_dir: str = Field(default="./data/chroma", alias="CHROMA_PERSIST_DIRECTORY")
+    # Cloudinary Document Storage
+    cloudinary_cloud_name: Optional[str] = Field(default=None, alias="CLOUDINARY_CLOUD_NAME")
+    cloudinary_api_key: Optional[str] = Field(default=None, alias="CLOUDINARY_API_KEY")
+    cloudinary_api_secret: Optional[str] = Field(default=None, alias="CLOUDINARY_API_SECRET")
+    cloudinary_folder: Optional[str] = Field(default="manan-ai", alias="CLOUDINARY_FOLDER")
+
+    # Embeddings Configuration (PostgreSQL pgvector)
+    embedding_provider: str = Field(alias="EMBEDDING_PROVIDER")
+    embedding_model: str = Field(alias="EMBEDDING_MODEL")
+    embedding_dimension: int = Field(alias="EMBEDDING_DIMENSION")
+
+    # Document Processing & Storage
     documents_dir: str = Field(default="./data/documents", alias="UPLOAD_DIR")
-    chroma_collection: str = Field(default="documents", alias="CHROMA_COLLECTION")
+    max_upload_size_mb: int = Field(alias="MAX_UPLOAD_SIZE_MB")
+    total_storage_limit_mb: int = Field(alias="TOTAL_STORAGE_LIMIT_MB")
+    chunk_size: int = Field(alias="CHUNK_SIZE")
+    chunk_overlap: int = Field(alias="CHUNK_OVERLAP")
+    tesseract_cmd: Optional[str] = Field(default=None, alias="TESSERACT_CMD")
 
-    max_upload_size_mb: int = Field(default=50, alias="MAX_UPLOAD_SIZE_MB")
-    total_storage_limit_mb: int = Field(default=500, alias="TOTAL_STORAGE_LIMIT_MB")
-    chunk_size: int = Field(default=1000, alias="CHUNK_SIZE")
-    chunk_overlap: int = Field(default=200, alias="CHUNK_OVERLAP")
-    tesseract_cmd: str | None = Field(default=None, alias="TESSERACT_CMD")
+    # CORS
+    cors_allowed_origins: str = Field(alias="CORS_ALLOWED_ORIGINS")
 
-    cors_allowed_origins: str = Field(
-        default="http://localhost:5174,http://localhost:5173,http://localhost:3000",
-        alias="CORS_ALLOWED_ORIGINS",
-    )
+    @model_validator(mode="after")
+    def validate_provider_and_credentials(self) -> "Settings":
+        prov = (self.llm_provider or "").lower().strip()
+        if prov not in {"gemini", "qwen"}:
+            raise ValueError(
+                f"Unsupported LLM provider '{self.llm_provider}'. Supported providers are: 'gemini', 'qwen'"
+            )
+
+        if prov == "qwen":
+            missing = []
+            if not self.qwen_api_key or not self.qwen_api_key.strip():
+                missing.append("QWEN_API_KEY")
+            if not self.qwen_base_url or not self.qwen_base_url.strip():
+                missing.append("QWEN_BASE_URL")
+            if not self.qwen_model or not self.qwen_model.strip():
+                missing.append("QWEN_MODEL")
+            if missing:
+                raise ValueError(
+                    f"Missing required environment variable(s) for Qwen provider: {', '.join(missing)}"
+                )
+
+        if prov == "gemini":
+            if not self.google_api_key or not self.google_api_key.strip():
+                raise ValueError(
+                    "Missing required environment variable for Gemini provider: GOOGLE_API_KEY"
+                )
+
+        return self
 
     @property
     def gemini_model(self) -> str:
@@ -76,10 +105,6 @@ class Settings(BaseSettings):
     @property
     def database_path(self) -> str:
         return self.database_url
-
-    @property
-    def chroma_db(self) -> str:
-        return self.chroma_dir
 
     @property
     def upload_dir(self) -> str:
@@ -96,22 +121,40 @@ class Settings(BaseSettings):
         p = Path(path_str)
         if p.is_absolute():
             return p
-        return (VERSION_ROOT / p).resolve()
+        return (PROJECT_ROOT / p).resolve()
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    settings = Settings()
+    try:
+        settings = Settings()
+    except PydanticValidationError as e:
+        custom_messages = []
+        missing_vars = []
+        for err in e.errors():
+            msg = err.get("msg", "")
+            loc = err.get("loc", ())
+            if "Value error, " in msg:
+                custom_messages.append(msg.replace("Value error, ", ""))
+            elif loc:
+                missing_vars.append(str(loc[0]).upper())
+            elif msg:
+                custom_messages.append(msg)
+
+        if custom_messages:
+            error_detail = "; ".join(custom_messages)
+        elif missing_vars:
+            error_detail = f"Missing required environment variable(s): {', '.join(missing_vars)}"
+        else:
+            error_detail = str(e)
+
+        raise RuntimeError(
+            f"Configuration error: {error_detail}. Please check your .env file."
+        ) from e
+
+    # Ensure document upload directory exists
     docs_path = settings.resolve_path(settings.documents_dir)
     docs_path.mkdir(parents=True, exist_ok=True)
     settings.documents_dir = str(docs_path)
-
-    chroma_path = settings.resolve_path(settings.chroma_dir)
-    chroma_path.mkdir(parents=True, exist_ok=True)
-    settings.chroma_dir = str(chroma_path)
-
-    data_path = settings.resolve_path(settings.data_dir)
-    data_path.mkdir(parents=True, exist_ok=True)
-    settings.data_dir = str(data_path)
 
     return settings

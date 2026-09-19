@@ -1,11 +1,8 @@
-"""Local LLM integrations: Ollama and HuggingFace / transformers."""
+"""LLM Integrations: Gemini and Qwen."""
 
-from .ollama_client import OllamaClient, OllamaLLM
-from .local_llm_client import LocalLLMClient, LocalLLM
+from .factory import LLMFactory, get_llm
 
 __all__ = [
-    "OllamaClient",
-    "OllamaLLM",
-    "LocalLLMClient",
-    "LocalLLM",
+    "LLMFactory",
+    "get_llm",
 ]

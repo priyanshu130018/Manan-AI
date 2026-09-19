@@ -1,4 +1,5 @@
-import { api } from "./axios";
+import { api, API_BASE_URL } from "./axios";
+import type { ApiResponse } from "@/types";
 
 export interface User {
   id: string;
@@ -17,8 +18,8 @@ export interface AuthResponse {
 
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const res = await api.get<{ success: boolean; data: User; user?: User }>("/auth/me");
-    return res.data?.data || res.data?.user || null;
+    const res = await api.get<ApiResponse<User>>("/auth/me");
+    return res.data?.data || null;
   } catch {
     return null;
   }
@@ -30,8 +31,8 @@ export async function signup(data: {
   password?: string;
   mobile?: string;
 }): Promise<User> {
-  const res = await api.post<{ success: boolean; data: User; user?: User }>("/auth/signup", data);
-  const user = res.data?.data || res.data?.user;
+  const res = await api.post<ApiResponse<User>>("/auth/signup", data);
+  const user = res.data?.data;
   if (!user) throw new Error("No user profile returned from signup.");
   return user;
 }
@@ -40,8 +41,8 @@ export async function login(data: {
   email: string;
   password?: string;
 }): Promise<User> {
-  const res = await api.post<{ success: boolean; data: User; user?: User }>("/auth/login", data);
-  const user = res.data?.data || res.data?.user;
+  const res = await api.post<ApiResponse<User>>("/auth/login", data);
+  const user = res.data?.data;
   if (!user) throw new Error("No user profile returned from login.");
   return user;
 }
@@ -54,8 +55,9 @@ export async function updateProfile(data: {
   name?: string;
   mobile?: string;
 }): Promise<User> {
-  const res = await api.patch<{ success: boolean; user: User }>("/profile", data);
-  return res.data.user;
+  const res = await api.patch<ApiResponse<User>>("/profile", data);
+  if (!res.data?.data) throw new Error("Failed to update profile.");
+  return res.data.data;
 }
 
 export async function changePassword(data: {
@@ -66,7 +68,6 @@ export async function changePassword(data: {
 }
 
 export function getGoogleAuthUrl(): string {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
-  return `${apiBase}/auth/google/login`;
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  return `${base}/auth/google/login`;
 }
-

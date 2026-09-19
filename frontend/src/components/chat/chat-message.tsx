@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sparkle, User, Pencil, Copy, Check, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Markdown } from "./markdown";
-import { CitationCard } from "./citation-card";
+import { CompactSourcesDisplay } from "./citation-card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,12 @@ export function ChatMessage({
   const [submittingEdit, setSubmittingEdit] = useState(false);
   const [copied, setCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditContent(message.content);
+    }
+  }, [message.content, isEditing]);
 
   const handleCopy = async () => {
     try {
@@ -173,18 +179,8 @@ export function ChatMessage({
         </div>
 
         {message.citations && message.citations.length > 0 && (
-          <div className="space-y-1.5 pt-1">
-            <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-              Sources ({message.citations.length})
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {message.citations.map((citation, i) => (
-                <CitationCard
-                  key={citation.id || `${citation.filename}-${citation.chunk_index ?? citation.chunk ?? i}-${i}`}
-                  citation={citation}
-                />
-              ))}
-            </div>
+          <div className="pt-1">
+            <CompactSourcesDisplay citations={message.citations} />
           </div>
         )}
 

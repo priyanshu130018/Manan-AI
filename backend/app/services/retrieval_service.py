@@ -1,20 +1,26 @@
 from collections import defaultdict
 import asyncio
+from typing import Optional
 
 from app.core.config import get_settings
+from app.core.logging import LoggerFactory
 from app.integrations.embeddings import LocalEmbedding
 from app.integrations.gemini.client import GeminiEmbedding
 from app.models.entities.chunk import DocumentChunk
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.vector_repository import VectorRepository
 
+logger = LoggerFactory.create_logger("RetrievalService")
+
 
 class RetrievalService:
+    """Hybrid RAG retrieval combining PostgreSQL pgvector HNSW search and PostgreSQL Full-Text Search."""
+
     def __init__(
         self,
-        vector_repo: VectorRepository | None = None,
-        doc_repo: DocumentRepository | None = None,
-        embedding: object | None = None,
+        vector_repo: Optional[VectorRepository] = None,
+        doc_repo: Optional[DocumentRepository] = None,
+        embedding: Optional[object] = None,
         rrf_k: int = 60,
     ) -> None:
         settings = get_settings()
@@ -32,60 +38,85 @@ class RetrievalService:
     async def retrieve_vectors(
         self,
         query: str,
-        document_ids: list[str] | None = None,
-        user_id: str | None = None,
+        document_ids: Optional[list[str]] = None,
+        user_id: Optional[str] = None,
         top_k: int = 10,
     ) -> list[DocumentChunk]:
-        """Perform dense vector retrieval via embeddings and ChromaDB."""
+        """Perform dense vector retrieval via embeddings and PostgreSQL pgvector HNSW search."""
         try:
-            emb = await self._embedding.embed(query)
-            filters = None
-            conditions = []
-            if user_id:
-                conditions.append({"user_id": user_id})
+            # 1. Ownership security verification: filter requested document_ids by user ownership
+            clean_ids: list[str] = []
             if document_ids:
-                clean_ids = [d.strip() for d in document_ids if d and d.strip()]
-                if len(clean_ids) == 1:
-                    conditions.append({"document_id": clean_ids[0]})
-                elif len(clean_ids) > 1:
-                    conditions.append({"document_id": {"$in": clean_ids}})
-            if len(conditions) == 1:
-                filters = conditions[0]
-            elif len(conditions) > 1:
-                filters = {"$and": conditions}
+                raw_clean = [d.strip() for d in document_ids if d and d.strip()]
+                if user_id:
+                    user_docs = await self._doc_repo.list_all(user_id=user_id)
+                    allowed_doc_ids = {d.document_id for d in user_docs}
+                    clean_ids = [d for d in raw_clean if d in allowed_doc_ids]
+                    if not clean_ids:
+                        logger.warning(
+                            "RAG Vector Retrieval blocked: requested document_ids %s do not belong to user_id '%s'.",
+                            document_ids,
+                            user_id,
+                        )
+                        return []
+                else:
+                    clean_ids = raw_clean
 
+            # 2. Generate query embedding
+            emb = await self._embedding.embed(query)
+            emb_dim = len(emb) if isinstance(emb, list) else 0
+
+            # 3. Search PostgreSQL pgvector using HNSW cosine index
             raw_chunks = await self._vector_repo.search(
                 embedding=emb,
                 top_k=top_k,
-                filters=filters,
+                document_ids=clean_ids if clean_ids else None,
+                user_id=user_id,
             )
 
             chunks: list[DocumentChunk] = []
             for rc in raw_chunks:
-                chunks.append(DocumentChunk(
-                    chunk_id=rc.id,
-                    document_id=rc.metadata.get("document_id", ""),
-                    filename=rc.metadata.get("filename", "Unknown"),
-                    page_number=int(rc.metadata.get("page", 1)),
-                    chunk_index=int(rc.metadata.get("chunk", 1)),
-                    text=rc.document,
-                    source_type=rc.metadata.get("source_type", "pdf"),
-                    heading=rc.metadata.get("heading"),
-                    score=rc.score,
-                ))
+                meta = rc.metadata or {}
+                chunks.append(
+                    DocumentChunk(
+                        chunk_id=rc.id,
+                        document_id=meta.get("document_id", ""),
+                        filename=meta.get("filename", "Unknown"),
+                        page_number=int(meta.get("page", 1) or 1),
+                        chunk_index=int(meta.get("chunk", 0) or 0),
+                        text=rc.document,
+                        source_type=meta.get("source_type", "pdf"),
+                        heading=meta.get("heading"),
+                        score=rc.score,
+                    )
+                )
+
+            logger.info(
+                "RAG pgvector search: user_id='%s', requested_docs=%s, retrieved_chunks=%d, dim=%d",
+                user_id or "anonymous",
+                clean_ids,
+                len(chunks),
+                emb_dim,
+            )
             return chunks
-        except Exception:
+        except Exception as e:
+            logger.exception(
+                "Vector retrieval failed for user_id='%s', document_ids=%s: %s",
+                user_id,
+                document_ids,
+                e,
+            )
             return []
 
     async def retrieve_keywords(
         self,
         query: str,
-        document_ids: list[str] | None = None,
-        user_id: str | None = None,
+        document_ids: Optional[list[str]] = None,
+        user_id: Optional[str] = None,
         limit: int = 10,
     ) -> list[DocumentChunk]:
-        """Perform sparse keyword retrieval."""
-        return await self._doc_repo.search_fts(query=query, document_ids=document_ids, limit=limit)
+        """Perform sparse keyword retrieval using PostgreSQL Full-Text Search."""
+        return await self._doc_repo.search_fts(query=query, document_ids=document_ids, user_id=user_id, limit=limit)
 
     def reciprocal_rank_fusion(
         self,
@@ -123,8 +154,8 @@ class RetrievalService:
     async def hybrid_retrieve(
         self,
         query: str,
-        document_ids: list[str] | None = None,
-        user_id: str | None = None,
+        document_ids: Optional[list[str]] = None,
+        user_id: Optional[str] = None,
         top_k: int = 5,
     ) -> list[DocumentChunk]:
         """Execute parallel dense + sparse retrieval and fuse with RRF."""
@@ -138,7 +169,3 @@ class RetrievalService:
             keyword_candidates=keyword_results,
             top_k=top_k,
         )
-
-
-# Backward compatibility alias
-HybridRetriever = RetrievalService

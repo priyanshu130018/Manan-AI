@@ -1,6 +1,6 @@
 import time
 import uuid
-from typing import Any
+from langchain_core.messages import HumanMessage
 from app.models.entities.message import MessageEntity
 from app.repositories.session_repository import SessionRepository
 from app.repositories.memory_repository import MemoryRepository
@@ -95,7 +95,8 @@ class MemoryService:
 
 Summary:"""
         try:
-            return await self._get_llm().generate(prompt)
+            res = await self._get_llm().ainvoke([HumanMessage(content=prompt)])
+            return getattr(res, "content", str(res))
         except Exception as e:
             logger.warning("Conversation summarization skipped on error: %s", str(e))
             return ""
@@ -104,7 +105,7 @@ Summary:"""
     # Long-Term Cross-Chat Memory (Persisted in PostgreSQL `memories`)
     # ---------------------------------------------------------
 
-    async def get_long_term_memories(self, user_id: str | None = None, limit: int = 20) -> list[dict[str, Any]]:
+    async def get_long_term_memories(self, user_id: str | None = None, limit: int = 20) -> list[dict]:
         return await self._memory_repo.list_memories(user_id=user_id, limit=limit)
 
     async def save_long_term_memory(
@@ -112,7 +113,7 @@ Summary:"""
         content: str,
         user_id: str | None = None,
         session_id: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict:
         return await self._memory_repo.create_memory(
             content=content,
             user_id=user_id,
@@ -124,7 +125,7 @@ Summary:"""
         memory_id: str,
         content: str,
         user_id: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict | None:
         return await self._memory_repo.update_memory(
             memory_id=memory_id,
             content=content,
@@ -150,7 +151,8 @@ User message: "{user_message}"
 
 Extracted Fact:"""
         try:
-            result = (await self._get_llm().generate(prompt)).strip()
+            res = await self._get_llm().ainvoke([HumanMessage(content=prompt)])
+            result = str(getattr(res, "content", res)).strip()
             if result and result.upper() != "NONE" and not result.upper().startswith("NONE"):
                 # Clean up any quotes or prefixes
                 clean_fact = result.strip('"').strip("'").strip()

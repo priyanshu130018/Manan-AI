@@ -47,6 +47,7 @@ interface SessionsContextValue {
   loadChatByNumber: (chatNumber: string) => Promise<ChatSession | null>;
   deleteSession: (id: string) => Promise<void>;
   appendMessage: (sessionId: string, message: ChatMessage) => void;
+  replaceActiveMessages: (messages: ChatMessage[]) => void;
   renameSession: (sessionId: string, title: string) => Promise<void>;
   refreshActiveSession: () => Promise<void>;
   createPersistentSessionFromDraft: (
@@ -200,13 +201,14 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const refreshActiveSession = useCallback(async () => {
-    if (!activeId || !user) return;
+    const idToRefresh = activeId || activeSession?.id;
+    if (!idToRefresh || !user || idToRefresh.startsWith("draft-") || idToRefresh.startsWith("temp-")) return;
     try {
-      await selectSession(activeId);
+      await selectSession(idToRefresh);
     } catch (err) {
       console.error("Failed to refresh active session:", err);
     }
-  }, [activeId, user, selectSession]);
+  }, [activeId, activeSession?.id, user, selectSession]);
 
   const deleteSession = useCallback(
     async (id: string) => {
@@ -236,6 +238,17 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
         ...current,
         title: newTitle,
         messages: [...current.messages, message],
+        updatedAt: Date.now(),
+      };
+    });
+  }, []);
+
+  const replaceActiveMessages = useCallback((messages: ChatMessage[]) => {
+    setActiveSession((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        messages,
         updatedAt: Date.now(),
       };
     });
@@ -298,6 +311,7 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
       loadChatByNumber,
       deleteSession,
       appendMessage,
+      replaceActiveMessages,
       renameSession,
       refreshActiveSession,
       createPersistentSessionFromDraft,
@@ -315,6 +329,7 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
       loadChatByNumber,
       deleteSession,
       appendMessage,
+      replaceActiveMessages,
       renameSession,
       refreshActiveSession,
       createPersistentSessionFromDraft,

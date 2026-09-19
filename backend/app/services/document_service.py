@@ -1,19 +1,11 @@
-"""Simple document ingestion pipeline.
-
-Step 1: Save the uploaded file to disk (local storage, UUID-named).
-Step 2: Extract plain text from pages using the appropriate format parser.
-Step 3: Split text into chunks and convert chunks to vectors (embeddings).
-Step 4: Save vectors + metadata to ChromaDB and update the document record as READY.
-
-Embedding is LOCAL by default (sentence-transformers), no Google API is
-touched for embeddings anymore, so 429 RESOURCE_EXHAUSTED cannot happen.
-Set EMBEDDING_PROVIDER=google in .env to opt back into Gemini embeddings.
-"""
+"""Document ingestion and lifecycle service using Cloudinary cloud storage and PostgreSQL pgvector."""
 
 from __future__ import annotations
 
+import tempfile
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from fastapi import UploadFile
 
@@ -28,7 +20,7 @@ from app.integrations.documents.parsers import detect_source_type, get_parser
 from app.integrations.documents.splitter import StructurePreservingSplitter
 from app.integrations.embeddings import LocalEmbedding
 from app.integrations.gemini.client import GeminiEmbedding
-from app.integrations.storage.local_storage import LocalStorage
+from app.integrations.storage.cloudinary_storage import CloudinaryStorage
 from app.models.entities.document import DocumentEntity
 from app.models.entities.enums import DocumentStatus
 from app.repositories.document_repository import DocumentRepository
@@ -40,17 +32,16 @@ logger = LoggerFactory.create_logger("DocumentService")
 class DocumentService:
     def __init__(
         self,
-        doc_repo: DocumentRepository | None = None,
-        vector_repo: VectorRepository | None = None,
-        storage: LocalStorage | None = None,
-        embedding: object | None = None,
+        doc_repo: Optional[DocumentRepository] = None,
+        vector_repo: Optional[VectorRepository] = None,
+        cloudinary_storage: Optional[CloudinaryStorage] = None,
+        embedding: Optional[object] = None,
     ) -> None:
         self._settings = get_settings()
         self._doc_repo = doc_repo or DocumentRepository()
         self._vector_repo = vector_repo or VectorRepository()
-        self._storage = storage or LocalStorage()
+        self._cloudinary = cloudinary_storage or CloudinaryStorage()
 
-        # Decide embedding provider (default: local, no API, no 429s).
         provider = (self._settings.embedding_provider or "local").lower().strip()
         if embedding is not None:
             self._embedding = embedding
@@ -69,10 +60,9 @@ class DocumentService:
             chunk_overlap=self._settings.chunk_overlap,
         )
 
-    # ------------------------------------------------------------------
-    # Core pipeline: 4 simple steps
-    # ------------------------------------------------------------------
     async def ingest_document(self, file: UploadFile, user_id: str | None = None) -> DocumentEntity:
+        if not user_id:
+            raise ValueError("user_id is required for document ingestion")
         if not file.filename:
             raise DocumentValidationError("No filename provided in upload.")
 
@@ -82,17 +72,18 @@ class DocumentService:
         doc_id = str(uuid.uuid4())
         ext = Path(original_name).suffix
         stored_filename = f"{doc_id}{ext}"
-        target_path = self._storage.get_target_path(stored_filename)
 
         max_bytes = self._settings.max_upload_size_mb * 1024 * 1024
         total_storage_limit_bytes = self._settings.total_storage_limit_mb * 1024 * 1024
         current_used_bytes = await self._doc_repo.get_total_storage_bytes(user_id=user_id)
 
-        # --- Step 1: Save file locally ---
-        logger.info("[1/4] Saving '%s' to %s", original_name, target_path)
+        # Create temporary file for initial upload & parsing
+        temp_dir = Path(tempfile.gettempdir())
+        temp_file_path = temp_dir / f"manan_upload_{doc_id}{ext}"
+
         total_bytes = 0
         try:
-            with open(target_path, "wb") as f:
+            with open(temp_file_path, "wb") as f:
                 while chunk := await file.read(256 * 1024):
                     total_bytes += len(chunk)
                     if total_bytes > max_bytes:
@@ -105,10 +96,31 @@ class DocumentService:
                         )
                     f.write(chunk)
         except Exception as e:
-            self._storage.delete_file(stored_filename)
+            if temp_file_path.exists():
+                try:
+                    temp_file_path.unlink()
+                except Exception:
+                    pass
             if isinstance(e, DocumentValidationError):
                 raise
-            raise DocumentProcessingError(f"Failed to save uploaded file: {e}")
+            raise DocumentProcessingError(f"Failed to read uploaded file: {e}")
+
+        # --- Step 1: Upload original document to Cloudinary ---
+        logger.info("[1/4] Uploading '%s' to Cloudinary for user '%s'", original_name, user_id)
+        try:
+            cloud_res = self._cloudinary.upload_file(
+                file_obj=str(temp_file_path),
+                filename=original_name,
+                user_id=user_id,
+                document_id=doc_id,
+            )
+        except Exception as e:
+            if temp_file_path.exists():
+                try:
+                    temp_file_path.unlink()
+                except Exception:
+                    pass
+            raise
 
         doc_entity = DocumentEntity(
             document_id=doc_id,
@@ -119,14 +131,17 @@ class DocumentService:
             size_bytes=total_bytes,
             status=DocumentStatus.PROCESSING,
             source_type=source_type,
+            cloudinary_public_id=cloud_res.get("cloudinary_public_id"),
+            cloudinary_secure_url=cloud_res.get("cloudinary_secure_url"),
+            cloudinary_resource_type=cloud_res.get("cloudinary_resource_type"),
         )
         await self._doc_repo.create(doc_entity)
 
         try:
-            # --- Step 2: Parse pages ---
+            # --- Step 2: Parse pages from temporary spool ---
             logger.info("[2/4] Parsing pages (provider=%s)", source_type.value)
             parser = get_parser(source_type)
-            parsed_pages = parser.parse_file(str(target_path))
+            parsed_pages = parser.parse_file(str(temp_file_path))
             if not parsed_pages or not any(getattr(p, "text", "").strip() for p in parsed_pages):
                 raise DocumentProcessingError(
                     f"'{original_name}' has no readable text. It may be empty or OCR is required."
@@ -148,7 +163,6 @@ class DocumentService:
             if hasattr(self._embedding, "embed_batch"):
                 embeddings = await self._embedding.embed_batch(chunk_texts)
             else:
-                # Fallback: sequential single-text embed
                 embeddings = [await self._embedding.embed(t) for t in chunk_texts]
 
             if len(embeddings) != len(chunks):
@@ -156,27 +170,32 @@ class DocumentService:
                     f"Embedding count mismatch: got {len(embeddings)} vectors for {len(chunks)} chunks."
                 )
 
-            # --- Step 4: Save vectors to Chroma + mark READY ---
-            logger.info("[4/4] Saving %d vectors to ChromaDB.", len(embeddings))
+            # --- Step 4: Save vectors to PostgreSQL pgvector + FTS and mark READY ---
+            logger.info("[4/4] Saving %d vectors to PostgreSQL pgvector for user '%s'.", len(embeddings), user_id)
             ids = [c.chunk_id for c in chunks]
             metadatas = [
                 {
                     "document_id": doc_id,
-                    "user_id": user_id or "",
+                    "user_id": user_id,
                     "filename": original_name,
-                    "page": int(c.page_number or 0),
+                    "page": int(c.page_number or 1),
                     "chunk": int(c.chunk_index or i),
                     "source_type": source_type.value,
                     "heading": (c.heading or "")[:200],
                 }
                 for i, c in enumerate(chunks)
             ]
+
             await self._vector_repo.add(
                 ids=ids,
                 documents=chunk_texts,
                 embeddings=embeddings,
                 metadatas=metadatas,
+                user_id=user_id,
             )
+
+            # Index FTS chunks as well
+            await self._doc_repo.index_chunks_fts(chunks, user_id=user_id)
 
             doc_entity.status = DocumentStatus.READY
             doc_entity.page_count = len(parsed_pages)
@@ -184,7 +203,7 @@ class DocumentService:
             await self._doc_repo.update(doc_entity)
 
             logger.info(
-                "Done ingesting '%s' — %d pages, %d chunks, provider=%s.",
+                "Successfully ingested '%s' — %d pages, %d chunks, provider=%s.",
                 original_name,
                 len(parsed_pages),
                 len(chunks),
@@ -193,7 +212,17 @@ class DocumentService:
             return doc_entity
 
         except Exception as e:
-            logger.exception("Ingest failed for '%s': %s", original_name, e)
+            logger.exception("Ingest failed for '%s': %s. Rolling back Cloudinary asset.", original_name, e)
+            # Cleanup Cloudinary asset if processing/indexing failed
+            if doc_entity.cloudinary_public_id:
+                try:
+                    self._cloudinary.delete_file(
+                        public_id=doc_entity.cloudinary_public_id,
+                        resource_type=doc_entity.cloudinary_resource_type or "raw",
+                    )
+                except Exception as del_err:
+                    logger.warning("Failed to destroy Cloudinary asset after ingest failure: %s", del_err)
+
             doc_entity.status = DocumentStatus.FAILED
             doc_entity.processing_error = str(e)
             try:
@@ -202,9 +231,14 @@ class DocumentService:
                 pass
             raise DocumentProcessingError(f"Processing failed: {e}")
 
-    # ------------------------------------------------------------------
-    # Misc list / get / delete / file storage
-    # ------------------------------------------------------------------
+        finally:
+            # Always clean up temporary file
+            if temp_file_path.exists():
+                try:
+                    temp_file_path.unlink()
+                except Exception:
+                    pass
+
     async def list_documents(self, user_id: str | None = None) -> list[DocumentEntity]:
         return await self._doc_repo.list_all(user_id=user_id)
 
@@ -217,17 +251,27 @@ class DocumentService:
     async def delete_document(self, document_id: str, user_id: str | None = None) -> None:
         doc = await self._doc_repo.get_by_id(document_id, user_id=user_id)
         if doc:
-            self._storage.delete_file(doc.stored_filename)
+            if doc.cloudinary_public_id:
+                self._cloudinary.delete_file(
+                    public_id=doc.cloudinary_public_id,
+                    resource_type=doc.cloudinary_resource_type or "raw",
+                )
+            await self._vector_repo.delete_document(document_id, user_id=user_id)
+            await self._doc_repo.delete_chunks_fts(document_id, user_id=user_id)
             await self._doc_repo.delete(document_id, user_id=user_id)
-            await self._vector_repo.delete_document(document_id)
-            logger.info("Deleted document %s and its vectors/files.", document_id)
+            logger.info("Deleted document %s and associated pgvector chunks/Cloudinary files for user %s.", document_id, user_id)
 
-    async def get_file_path(self, document_id: str, user_id: str | None = None) -> Path:
+    async def get_file_delivery_url(self, document_id: str, user_id: str | None = None) -> str:
+        """Return secure Cloudinary delivery URL for document viewing/download."""
         doc = await self.get_document(document_id, user_id=user_id)
-        path = self._storage.get_target_path(doc.stored_filename)
-        if not path.exists():
-            raise DocumentNotFoundError(f"File for document {document_id} not found on disk.")
-        return path
+        if doc.cloudinary_secure_url:
+            return doc.cloudinary_secure_url
+        if doc.cloudinary_public_id:
+            return self._cloudinary.get_secure_url(
+                doc.cloudinary_public_id,
+                resource_type=doc.cloudinary_resource_type or "raw",
+            )
+        raise DocumentNotFoundError(f"File for document {document_id} has no storage location.")
 
     async def get_storage_usage(self, user_id: str | None = None) -> dict:
         used_bytes = await self._doc_repo.get_total_storage_bytes(user_id=user_id)
@@ -242,6 +286,3 @@ class DocumentService:
             "limit_mb": limit_mb,
             "usage_percent": percent,
         }
-
-
-DocumentIngestUseCase = DocumentService

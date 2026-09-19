@@ -33,12 +33,17 @@ class ChatRequest(BaseModel):
     history: Optional[List[HistoryMessage]] = None
     chat_number: Optional[str] = None
 
+from app.models.schemas.session import MessageSchema
+
 class ChatData(BaseModel):
     response: str
     session_id: str
     chat_number: Optional[str] = None
     chat_id: Optional[str] = None
     citations: List[Citation] = Field(default_factory=list)
+    user_message_id: Optional[str] = None
+    assistant_message_id: Optional[str] = None
+    messages: Optional[List[MessageSchema]] = None
 
 ChatResponse = ChatData
 

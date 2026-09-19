@@ -51,7 +51,7 @@ def sanitize_url(raw_url: str) -> str:
 def get_database_url() -> str:
     """Read DATABASE_URL from the application environment configuration and format for psycopg."""
     settings = get_settings()
-    raw_url = os.environ.get("DATABASE_URL") or settings.database_url
+    raw_url = settings.database_url
     if not raw_url or not raw_url.strip():
         raise RuntimeError(
             "DATABASE_URL is not set in environment or .env file. Alembic cannot proceed."

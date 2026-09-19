@@ -15,6 +15,7 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { getHealthInfo } from "@/services/chat";
 import { readSettings, writeSettings, MODEL_OPTIONS, type AppSettings } from "@/services/axios";
+import { MananLogo } from "@/components/common/manan-logo";
 import type { SystemHealth } from "@/types";
 
 export const Route = createFileRoute("/settings")({
@@ -53,10 +54,12 @@ function SettingsPage() {
   }, []);
 
   const handleModelChange = (model: string) => {
-    const updated = { ...settings, model };
+    const opt = MODEL_OPTIONS.find((m) => m.value === model);
+    const provider = opt?.provider || settings.provider;
+    const updated = { ...settings, model, provider };
     setSettings(updated);
     writeSettings(updated);
-    toast.success(`Model switched to ${model}`);
+    toast.success(`Model switched to ${opt?.label || model}`);
   };
 
   const handleToggleMemory = (enabled: boolean) => {
@@ -99,7 +102,7 @@ function SettingsPage() {
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground pt-1">
-              Gemini models connect via Google Gemini API. Ollama runs locally without external network calls.
+              Gemini models connect via Google Gemini API. Qwen models connect via Alibaba Cloud Model Studio API.
             </p>
           </div>
         </section>
@@ -149,17 +152,13 @@ function SettingsPage() {
 
         {/* System Details */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-              <Sparkle className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">Manan AI</p>
-              <p className="text-xs text-muted-foreground">
-                Intelligent RAG Assistant
-              </p>
-            </div>
-          </div>
+          <MananLogo
+            size="lg"
+            showWordmark
+            subtitle="Intelligent RAG Assistant"
+            ariaLabel="Manan AI home"
+            className="transition-opacity hover:opacity-80"
+          />
           <Separator className="my-4" />
           <dl className="grid gap-2.5 text-sm">
             <div className="flex justify-between">
@@ -183,7 +182,7 @@ function SettingsPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Vector Store</dt>
-              <dd className="font-mono">ChromaDB</dd>
+              <dd className="font-mono">PostgreSQL pgvector (HNSW)</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Active Model</dt>

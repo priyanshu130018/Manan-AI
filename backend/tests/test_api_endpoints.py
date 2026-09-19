@@ -4,16 +4,20 @@ from starlette.testclient import TestClient
 from app.main import create_app
 from app.api.dependencies import get_chat_service
 
-def test_v2_health_check(client):
+
+def test_health_check(client):
     res = client.get("/health")
     assert res.status_code == 200
     data = res.json()
     assert data["success"] is True
+    assert data["status"] == "ok"
 
-def test_v2_list_and_create_sessions(client):
+
+def test_list_and_create_sessions(client):
     # 1. List
     res_list = client.get("/sessions")
     assert res_list.status_code == 200
+    assert res_list.json()["success"] is True
 
     # 2. Create
     res_create = client.post(
@@ -21,34 +25,44 @@ def test_v2_list_and_create_sessions(client):
         json={"title": "Test Chat", "mode": "chat", "chat_number": "1234567890"},
     )
     assert res_create.status_code == 200
+    assert res_create.json()["success"] is True
+    assert res_create.json()["data"]["title"] == "Test Chat"
 
-def test_v2_get_session_by_chat_number(client):
+
+def test_get_session_by_chat_number(client):
     res = client.get("/sessions/by-number/1234567890")
     assert res.status_code in [200, 404]
 
-def test_v2_chat_endpoint_mocked(client):
+
+def test_chat_endpoint_standardized(client):
     mock_chat_service = AsyncMock()
     from app.models.schemas.chat import ChatResponse
     mock_chat_service.execute.return_value = ChatResponse(
-        response="Hello from LangChain V2!",
+        response="Hello from Manan AI!",
         session_id="sess-v2-1",
         chat_number="1234567890",
         citations=[],
     )
     client.app.dependency_overrides[get_chat_service] = lambda: mock_chat_service
 
-    res = client.post("/chat", json={"message": "Hello V2", "session_id": "sess-v2-1"})
+    res = client.post("/chat", json={"message": "Hello", "session_id": "sess-v2-1"})
     assert res.status_code == 200
     data = res.json()
-    assert data["response"] == "Hello from LangChain V2!"
+    assert data["success"] is True
+    assert data["data"]["response"] == "Hello from Manan AI!"
 
 
+def test_no_duplicate_chat_or_documents_endpoints(client):
+    # /chat/send was removed as a duplicate
+    res_send = client.post("/chat/send", json={"message": "test"})
+    assert res_send.status_code in [404, 405]
 
-def test_v2_canonical_upload_and_no_duplicate_endpoint(client):
-    res = client.get("/documents")
-    assert res.status_code == 404
+    # /documents was removed, canonical is /doc
+    res_docs = client.get("/documents")
+    assert res_docs.status_code == 404
 
-def test_v2_openapi_security_scheme_present():
+
+def test_openapi_security_scheme_present():
     app = create_app()
     with TestClient(app) as test_client:
         res = test_client.get("/openapi.json")
@@ -58,7 +72,8 @@ def test_v2_openapi_security_scheme_present():
         security_schemes = components.get("securitySchemes", {})
         assert "HTTPBearer" in security_schemes or "OAuth2PasswordBearer" in security_schemes
 
-def test_v2_memories_crud(client):
+
+def test_memories_crud(client):
     from app.api.dependencies import get_memory_service
     mock_mem_svc = AsyncMock()
     mock_mem_svc.get_long_term_memories.return_value = [
@@ -92,7 +107,8 @@ def test_v2_memories_crud(client):
     res_del = client.delete("/memories/mem-1")
     assert res_del.status_code == 200
 
-def test_v2_messages_edit_and_regenerate(client):
+
+def test_messages_edit_and_regenerate(client):
     mock_chat_svc = AsyncMock()
     from app.models.schemas.chat import ChatResponse
     mock_chat_svc.edit_message_and_regenerate.return_value = ChatResponse(
@@ -118,4 +134,3 @@ def test_v2_messages_edit_and_regenerate(client):
     res_regen = client.post("/messages/msg-1/regenerate", json={})
     assert res_regen.status_code == 200
     assert res_regen.json()["data"]["response"] == "Regenerated response!"
-

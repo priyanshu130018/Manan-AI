@@ -1,4 +1,4 @@
-import { api, readSettings } from "./axios";
+import { api, readSettings, MODEL_OPTIONS } from "./axios";
 import type { ChatResponse, ApiResponse, SystemHealth } from "@/types";
 import type { SessionDetail } from "./session";
 
@@ -11,17 +11,22 @@ export async function sendChatMessage(
   providerOverride?: string,
 ): Promise<ChatResponse> {
   const currentSettings = readSettings();
+  const targetModel = modelOverride || currentSettings.model;
+  const modelOpt = MODEL_OPTIONS.find((m) => m.value === targetModel);
+  const targetProvider = providerOverride || modelOpt?.provider || currentSettings.provider;
+
   const payload: {
     session_id?: string | null;
     message: string;
     document_ids?: string[];
+    selected_document_ids?: string[];
     provider?: string;
     model?: string;
     memory_enabled?: boolean;
   } = {
     message: message || "",
-    provider: providerOverride || currentSettings.provider,
-    model: modelOverride || currentSettings.model,
+    provider: targetProvider,
+    model: targetModel,
     memory_enabled: memoryEnabledOverride !== undefined ? memoryEnabledOverride : currentSettings.memoryEnabled,
   };
 
@@ -31,14 +36,11 @@ export async function sendChatMessage(
 
   if (documentIds && documentIds.length > 0) {
     payload.document_ids = documentIds;
+    payload.selected_document_ids = documentIds;
   }
 
-  const { data } = await api.post<ApiResponse<ChatResponse> | ChatResponse>("/chat", payload);
-  const raw = data as any;
-  if (raw && raw.data && typeof raw.data === "object" && "response" in raw.data) {
-    return raw.data as ChatResponse;
-  }
-  return raw as ChatResponse;
+  const { data } = await api.post<ApiResponse<ChatResponse>>("/chat", payload);
+  return data.data;
 }
 
 export async function editChatMessage(
@@ -47,10 +49,14 @@ export async function editChatMessage(
   model?: string,
   provider?: string,
 ): Promise<ChatResponse> {
+  const currentSettings = readSettings();
+  const targetModel = model || currentSettings.model;
+  const modelOpt = MODEL_OPTIONS.find((m) => m.value === targetModel);
+  const prov = provider || modelOpt?.provider || currentSettings.provider;
   const { data } = await api.patch<ApiResponse<ChatResponse>>(`/messages/${messageId}`, {
     content,
-    model,
-    provider,
+    model: targetModel,
+    provider: prov,
   });
   return data.data;
 }
@@ -60,9 +66,13 @@ export async function regenerateChatMessage(
   model?: string,
   provider?: string,
 ): Promise<ChatResponse> {
+  const currentSettings = readSettings();
+  const targetModel = model || currentSettings.model;
+  const modelOpt = MODEL_OPTIONS.find((m) => m.value === targetModel);
+  const prov = provider || modelOpt?.provider || currentSettings.provider;
   const { data } = await api.post<ApiResponse<ChatResponse>>(`/messages/${messageId}/regenerate`, {
-    model,
-    provider,
+    model: targetModel,
+    provider: prov,
   });
   return data.data;
 }
@@ -75,4 +85,30 @@ export async function getSharedChat(chatNumber: string): Promise<SessionDetail> 
 export async function getHealthInfo(): Promise<SystemHealth> {
   const { data } = await api.get<SystemHealth>("/health");
   return data;
+}
+
+export interface AvailableModelItem {
+  value: string;
+  label: string;
+  provider: "gemini" | "qwen";
+}
+
+export interface AvailableModelsData {
+  gemini: {
+    available: boolean;
+    message: string;
+    models: AvailableModelItem[];
+  };
+  qwen: {
+    available: boolean;
+    message: string;
+    models: AvailableModelItem[];
+  };
+  default_model: string;
+  default_provider: "gemini" | "qwen";
+}
+
+export async function fetchAvailableModels(): Promise<AvailableModelsData> {
+  const { data } = await api.get<ApiResponse<AvailableModelsData>>("/llm/models");
+  return data.data;
 }

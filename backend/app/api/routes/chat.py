@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, Header, HTTPException
 from app.api.dependencies import get_chat_service, get_session_repository
 from app.api.dependencies.auth import get_current_user
 from app.models.entities.user import UserEntity
@@ -11,14 +12,22 @@ from app.models.schemas.session import SessionDetailSchema, MessageSchema
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
-@router.post("", response_model=ChatResponse)
-@router.post("/send", response_model=ChatResponse)
+@router.post("", response_model=ApiResponse[ChatResponse])
 async def chat_endpoint(
     request: ChatRequest,
+    x_model_name: Optional[str] = Header(None, alias="X-Model-Name"),
     current_user: UserEntity = Depends(get_current_user),
     chat_svc: ChatService = Depends(get_chat_service),
-) -> ChatResponse:
-    return await chat_svc.execute(request, user=current_user)
+) -> ApiResponse[ChatResponse]:
+    """Process a chat message, perform RAG retrieval, and return assistant response with citations."""
+    if not request.model and x_model_name:
+        request.model = x_model_name
+    result = await chat_svc.execute(request, user=current_user)
+    return ApiResponse(
+        success=True,
+        message="Response generated successfully.",
+        data=result,
+    )
 
 
 @router.get("/{chat_number}", response_model=ApiResponse[SessionDetailSchema])

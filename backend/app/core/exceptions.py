@@ -1,8 +1,16 @@
 class MananException(Exception):
-    def __init__(self, message: str, status_code: int = 400):
+    def __init__(
+        self,
+        message: str,
+        status_code: int = 400,
+        error_code: str | None = None,
+        details: dict | list | None = None,
+    ):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+        self.error_code = error_code or self.__class__.__name__
+        self.details = details
 
 
 class ValidationError(MananException):
@@ -62,8 +70,22 @@ class RateLimitError(AIServiceError):
 
 
 class LLMError(AIServiceError):
-    def __init__(self, message: str):
-        super().__init__(message, status_code=503)
+    def __init__(
+        self,
+        message: str,
+        provider: str | None = None,
+        model: str | None = None,
+        status_code: int = 503,
+        error_code: str | None = None,
+        details: dict | list | None = None,
+    ):
+        super().__init__(message, status_code=status_code)
+        self.provider = provider
+        self.model = model
+        if error_code:
+            self.error_code = error_code
+        if details:
+            self.details = details
 
 
 class EmbeddingError(AIServiceError):

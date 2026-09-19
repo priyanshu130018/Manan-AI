@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingSpinner } from "@/components/common/loading-spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ModelSelector } from "@/components/chat/model-selector";
+import { readSettings, writeSettings } from "@/services/axios";
 
 const ACCEPTED_EXTENSIONS = ".pdf,.docx,.pptx,.txt,.md,.sql,.csv,.json,.png,.jpg,.jpeg,.webp";
 
@@ -15,6 +17,10 @@ export function ChatInput({
   uploading = false,
   disabled = false,
   onDisabledClick,
+  currentModel: externalModel,
+  onModelChange: externalOnModelChange,
+  draftText,
+  onDraftTextChange,
 }: {
   onSend: (value: string) => void;
   loading: boolean;
@@ -23,10 +29,34 @@ export function ChatInput({
   uploading?: boolean;
   disabled?: boolean;
   onDisabledClick?: () => void;
+  currentModel?: string;
+  onModelChange?: (modelValue: string, provider: "gemini" | "qwen") => void;
+  draftText?: string;
+  onDraftTextChange?: (text: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(draftText || "");
+  const [internalModel, setInternalModel] = useState<string>(() => externalModel || readSettings().model);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (draftText !== undefined && draftText !== value) {
+      setValue(draftText);
+    }
+  }, [draftText]);
+
+  const activeModel = externalModel || internalModel;
+
+  const handleModelChange = (modelValue: string, provider: "gemini" | "qwen") => {
+    setInternalModel(modelValue);
+    if (externalOnModelChange) {
+      externalOnModelChange(modelValue, provider);
+    } else {
+      const settings = readSettings();
+      writeSettings({ ...settings, model: modelValue, provider });
+    }
+  };
+
 
   useEffect(() => {
     if (!loading && !disabled) ref.current?.focus();
@@ -147,26 +177,33 @@ export function ChatInput({
                 disabled ? "cursor-pointer select-none" : ""
               }`}
             />
-            <Button
-              size="icon"
-              onClick={(e) => {
-                if (disabled) {
-                  e.stopPropagation();
-                  onDisabledClick?.();
-                  return;
-                }
-                submit();
-              }}
-              disabled={disabled || loading || !value.trim()}
-              aria-label="Send message"
-              className="h-9 w-9 shrink-0 rounded-xl"
-            >
-              {loading ? (
-                <LoadingSpinner className="text-primary-foreground" />
-              ) : (
-                <ArrowUp className="h-4 w-4" />
-              )}
-            </Button>
+            <div className="flex items-center gap-1 shrink-0 pb-1">
+              <ModelSelector
+                currentModel={activeModel}
+                onModelChange={handleModelChange}
+              />
+              <Button
+                size="icon"
+                onClick={(e) => {
+                  if (disabled) {
+                    e.stopPropagation();
+                    onDisabledClick?.();
+                    return;
+                  }
+                  submit();
+                }}
+                disabled={disabled || loading || !value.trim()}
+                aria-label="Send message"
+                className="h-9 w-9 shrink-0 rounded-xl"
+              >
+                {loading ? (
+                  <LoadingSpinner className="text-primary-foreground" />
+                ) : (
+                  <ArrowUp className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
           </div>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             Manan AI can make mistakes. Check important information.

@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column('auth_provider', sa.String(50), nullable=False, server_default='local'),
         sa.Column('google_subject', sa.String(255), nullable=True),
         sa.Column('long_term_memory_enabled', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('preferred_model', sa.String(100), nullable=True, server_default='gemini-2.5-flash'),
+        sa.Column('preferred_model', sa.String(100), nullable=True, server_default='gemini-3.6-flash'),
         sa.Column('preferred_provider', sa.String(50), nullable=True, server_default='gemini'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),

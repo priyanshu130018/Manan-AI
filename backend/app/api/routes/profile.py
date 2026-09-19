@@ -68,7 +68,6 @@ async def update_profile(
 
 
 @router.post("/password", response_model=ApiResponse[dict])
-@router.post("/change-password", response_model=ApiResponse[dict])
 async def change_password(
     body: ChangePasswordRequest,
     current_user: UserEntity = Depends(get_current_user),

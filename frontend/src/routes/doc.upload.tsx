@@ -159,7 +159,7 @@ function UploadPage() {
         );
 
         toast.success(`'${result.filename}' indexed successfully`, {
-          description: `${result.chunks} chunks stored in ChromaDB & PostgreSQL.`,
+          description: `${result.chunks} chunks stored in PostgreSQL pgvector.`,
         });
         loadStorage();
       } catch (error) {
@@ -196,7 +196,7 @@ function UploadPage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Upload Documents</h1>
             <p className="text-sm text-muted-foreground">
-              Add study materials for RAG retrieval. Files are chunked and embedded in ChromaDB.
+              Add study materials for RAG retrieval. Files are chunked and embedded in PostgreSQL pgvector.
             </p>
           </div>
           <Button asChild variant="outline" className="rounded-xl">

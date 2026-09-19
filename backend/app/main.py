@@ -4,6 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.middleware.cors import setup_cors
 from app.api.routes import api_router
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -49,39 +50,25 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    origins = [origin.strip() for origin in settings.cors_allowed_origins.split(",") if origin.strip()]
-    if not origins:
-        origins = ["http://localhost:5174", "http://localhost:5173", "http://localhost:3000"]
+    setup_cors(app)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     # 1. Domain-specific exception handling
     @app.exception_handler(MananException)
     async def manan_exception_handler(request: Request, exc: MananException):
-        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        if isinstance(exc, EntityNotFoundError):
-            status_code = status.HTTP_404_NOT_FOUND
-        elif isinstance(exc, DocumentError):
-            status_code = status.HTTP_400_BAD_REQUEST
-        elif isinstance(exc, (AIServiceError, LLMError, EmbeddingError)):
-            status_code = status.HTTP_502_BAD_GATEWAY
-        elif isinstance(exc, PersistenceError):
-            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        status_code = getattr(exc, "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+        error_code = getattr(exc, "error_code", exc.__class__.__name__)
+        details = getattr(exc, "details", None)
+        message = getattr(exc, "message", str(exc))
 
-        logger.warning("Domain exception caught [%s]: %s", exc.__class__.__name__, exc.message)
+        logger.warning("Domain exception caught [%s]: %s", exc.__class__.__name__, message)
         return JSONResponse(
             status_code=status_code,
             content={
                 "success": False,
-                "message": exc.message,
-                "error_code": exc.error_code,
-                "details": exc.details if exc.details else None,
+                "message": message,
+                "error_code": error_code,
+                "details": details if details else None,
             },
         )
 
@@ -134,4 +121,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
     settings = get_settings()
-    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=True)
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=True, reload_dirs=["app"])

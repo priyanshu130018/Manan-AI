@@ -4,6 +4,7 @@ import { Menu, Sparkle, Loader2, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { SidebarContentPanel } from "./app-sidebar";
+import { MananLogo } from "@/components/common/manan-logo";
 import { ErrorBoundary } from "@/components/common/error-boundary";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -80,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen w-full overflow-hidden bg-background">
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-sidebar-border transition-all duration-200 md:block",
+          "hidden h-full shrink-0 border-r border-sidebar-border transition-all duration-200 md:block",
           collapsed ? "w-[68px]" : "w-72",
         )}
       >
@@ -105,12 +106,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <SidebarContentPanel onNavigate={() => setOpen(false)} />
               </SheetContent>
             </Sheet>
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
-                <Sparkle className="h-3.5 w-3.5" />
-              </div>
-              <span className="truncate text-sm font-semibold">Manan AI</span>
-            </div>
+            <MananLogo
+              size="sm"
+              showWordmark
+              ariaLabel="Manan AI home"
+              className="min-w-0"
+            />
           </div>
 
           {!user && (
