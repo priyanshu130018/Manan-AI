@@ -56,12 +56,13 @@ def _set_auth_cookie(response: Response, token: str) -> None:
     settings = get_settings()
     max_age = settings.session_expiry_days * 24 * 3600
     is_prod = settings.env.lower() in ["prod", "production"]
+    cookie_samesite = "none" if is_prod else "lax"
     response.set_cookie(
         key="access_token",
         value=token,
         max_age=max_age,
         httponly=True,
-        samesite="lax",
+        samesite=cookie_samesite,
         secure=is_prod,
         path="/",
     )
@@ -123,11 +124,15 @@ async def login(
 @router.post("/logout", response_model=ApiResponse[dict])
 async def logout(response: Response):
     """Invalidate session by clearing the access_token HTTP-only cookie."""
+    settings = get_settings()
+    is_prod = settings.env.lower() in ["prod", "production"]
+    cookie_samesite = "none" if is_prod else "lax"
     response.delete_cookie(
         key="access_token",
         path="/",
         httponly=True,
-        samesite="lax",
+        samesite=cookie_samesite,
+        secure=is_prod,
     )
     return ApiResponse(
         success=True,
@@ -186,6 +191,7 @@ async def google_callback(
 ):
     """Handle Google OAuth 2.0 authorization callback and set session cookie."""
     settings = get_settings()
+    is_prod = settings.env.lower() in ["prod", "production"]
     base_frontend = settings.frontend_url.rstrip('/')
     frontend_target = f"{base_frontend}/"
 
@@ -213,7 +219,13 @@ async def google_callback(
             url=frontend_target,
             status_code=status.HTTP_303_SEE_OTHER,
         )
-        response.delete_cookie(key="oauth_state", path="/", httponly=True, samesite="lax")
+        response.delete_cookie(
+            key="oauth_state",
+            path="/",
+            httponly=True,
+            samesite="lax",
+            secure=is_prod,
+        )
         _set_auth_cookie(response, token)
         return response
     except Exception as e:

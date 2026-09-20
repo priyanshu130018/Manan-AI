@@ -137,3 +137,77 @@ def test_google_oauth_callback_invalid_state_redirect():
         assert res.headers.get("location") == expected_error_url
 
 
+def test_production_and_dev_cookie_security_attributes(monkeypatch):
+    from fastapi import Response
+    from app.api.routes.auth import _set_auth_cookie
+
+    # 1. Test Production Cookie Attributes
+    test_settings_prod = get_settings().model_copy(update={"env": "production"})
+    with monkeypatch.context() as m:
+        m.setattr("app.api.routes.auth.get_settings", lambda: test_settings_prod)
+        resp_prod = Response()
+        _set_auth_cookie(resp_prod, "prod-sample-token")
+        raw_cookie_prod = resp_prod.headers.get("set-cookie", "").lower()
+        
+        assert "access_token=prod-sample-token" in raw_cookie_prod
+        assert "httponly" in raw_cookie_prod
+        assert "secure" in raw_cookie_prod
+        assert "samesite=none" in raw_cookie_prod
+        assert "path=/" in raw_cookie_prod
+
+    # 2. Test Development Cookie Attributes
+    test_settings_dev = get_settings().model_copy(update={"env": "development"})
+    with monkeypatch.context() as m:
+        m.setattr("app.api.routes.auth.get_settings", lambda: test_settings_dev)
+        resp_dev = Response()
+        _set_auth_cookie(resp_dev, "dev-sample-token")
+        raw_cookie_dev = resp_dev.headers.get("set-cookie", "").lower()
+        
+        assert "access_token=dev-sample-token" in raw_cookie_dev
+        assert "httponly" in raw_cookie_dev
+        assert "samesite=lax" in raw_cookie_dev
+        assert "path=/" in raw_cookie_dev
+        assert "secure" not in raw_cookie_dev
+
+
+def test_logout_clears_cookie_with_matching_environment_attributes(monkeypatch):
+    test_settings_prod = get_settings().model_copy(update={"env": "production"})
+    with monkeypatch.context() as m:
+        m.setattr("app.api.routes.auth.get_settings", lambda: test_settings_prod)
+        with TestClient(app) as test_client:
+            res = test_client.post("/auth/logout")
+            assert res.status_code == 200
+            assert res.json()["data"]["authenticated"] is False
+            raw_cookie = res.headers.get("set-cookie", "").lower()
+            assert "access_token=" in raw_cookie
+            assert "httponly" in raw_cookie
+            assert "secure" in raw_cookie
+            assert "samesite=none" in raw_cookie
+            assert "path=/" in raw_cookie
+
+
+def test_cors_configuration_origin_matching(monkeypatch):
+    from app.api.middleware.cors import setup_cors
+    from fastapi import FastAPI
+    from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
+
+    test_settings = get_settings().model_copy(update={
+        "cors_allowed_origins": "https://manan-lrvss9jw9-priyanshus-projects-6e47a451.vercel.app/, http://localhost:5173",
+        "frontend_url": "https://manan-lrvss9jw9-priyanshus-projects-6e47a451.vercel.app",
+    })
+
+    with monkeypatch.context() as m:
+        m.setattr("app.api.middleware.cors.get_settings", lambda: test_settings)
+        test_app = FastAPI()
+        setup_cors(test_app)
+
+        # Inspect CORS middleware config
+        cors_mw = next(m for m in test_app.user_middleware if m.cls == StarletteCORSMiddleware)
+        assert cors_mw.kwargs["allow_credentials"] is True
+        assert "https://manan-lrvss9jw9-priyanshus-projects-6e47a451.vercel.app" in cors_mw.kwargs["allow_origins"]
+        assert "http://localhost:5173" in cors_mw.kwargs["allow_origins"]
+        # Ensure trailing slashes are not in allowed origins
+        assert "https://manan-lrvss9jw9-priyanshus-projects-6e47a451.vercel.app/" not in cors_mw.kwargs["allow_origins"]
+
+
+
