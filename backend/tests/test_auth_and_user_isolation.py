@@ -210,4 +210,69 @@ def test_cors_configuration_origin_matching(monkeypatch):
         assert "https://manan-lrvss9jw9-priyanshus-projects-6e47a451.vercel.app/" not in cors_mw.kwargs["allow_origins"]
 
 
+def test_post_login_and_signup_endpoints_return_production_cookie_headers(monkeypatch):
+    from unittest.mock import AsyncMock
+    from app.api.routes.auth import get_auth_service
+
+    test_user = UserEntity(
+        id="user-prod-123",
+        name="Production User",
+        email="produser@example.com",
+        auth_provider="local",
+    )
+
+    mock_auth_svc = AsyncMock()
+    mock_auth_svc.login.return_value = (test_user, "prod-session-token-abc")
+    mock_auth_svc.signup.return_value = (test_user, "prod-signup-token-xyz")
+
+    test_settings_prod = get_settings().model_copy(update={"env": "production"})
+
+    with monkeypatch.context() as m:
+        m.setattr("app.api.routes.auth.get_settings", lambda: test_settings_prod)
+        app.dependency_overrides[get_auth_service] = lambda: mock_auth_svc
+
+        try:
+            with TestClient(app) as test_client:
+                # 1. Verify POST /auth/login response and Set-Cookie header
+                res_login = test_client.post(
+                    "/auth/login",
+                    json={"email": "produser@example.com", "password": "Password123!"},
+                )
+                assert res_login.status_code == 200
+                assert res_login.json()["success"] is True
+                assert res_login.json()["data"]["email"] == "produser@example.com"
+
+                raw_cookie_login = res_login.headers.get("set-cookie", "").lower()
+                assert "access_token=prod-session-token-abc" in raw_cookie_login
+                assert "httponly" in raw_cookie_login
+                assert "secure" in raw_cookie_login
+                assert "samesite=none" in raw_cookie_login
+                assert "path=/" in raw_cookie_login
+                assert "domain=" not in raw_cookie_login
+
+                # 2. Verify POST /auth/signup response and Set-Cookie header
+                res_signup = test_client.post(
+                    "/auth/signup",
+                    json={
+                        "name": "Production User",
+                        "email": "produser@example.com",
+                        "password": "Password123!",
+                    },
+                )
+                assert res_signup.status_code == 200
+                assert res_signup.json()["success"] is True
+                assert res_signup.json()["data"]["email"] == "produser@example.com"
+
+                raw_cookie_signup = res_signup.headers.get("set-cookie", "").lower()
+                assert "access_token=prod-signup-token-xyz" in raw_cookie_signup
+                assert "httponly" in raw_cookie_signup
+                assert "secure" in raw_cookie_signup
+                assert "samesite=none" in raw_cookie_signup
+                assert "path=/" in raw_cookie_signup
+                assert "domain=" not in raw_cookie_signup
+        finally:
+            app.dependency_overrides.pop(get_auth_service, None)
+
+
+
 

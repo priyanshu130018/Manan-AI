@@ -1,10 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 async function generateHtml() {
   try {
     const serverEntryPath = path.resolve(process.cwd(), '.output/server/index.mjs');
-    const { default: handler } = await import(serverEntryPath);
+    const { default: handler } = await import(pathToFileURL(serverEntryPath).href);
 
     const req = new Request('http://localhost/', {
       headers: {
