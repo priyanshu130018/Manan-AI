@@ -34,8 +34,8 @@ os.environ["CLOUDINARY_API_KEY"] = "test-cloudinary-key"
 os.environ["CLOUDINARY_API_SECRET"] = "test-cloudinary-secret"
 os.environ["CLOUDINARY_FOLDER"] = "test-manan-ai"
 os.environ["CLOUDINARY_UPLOAD_PRESET"] = "test-preset"
-os.environ["EMBEDDING_PROVIDER"] = "local"
-os.environ["EMBEDDING_MODEL"] = "all-MiniLM-L6-v2"
+os.environ["EMBEDDING_PROVIDER"] = "huggingface"
+os.environ["EMBEDDING_MODEL"] = "sentence-transformers/all-MiniLM-L6-v2"
 os.environ["EMBEDDING_DIMENSION"] = "384"
 os.environ["MAX_UPLOAD_SIZE_MB"] = "50"
 os.environ["TOTAL_STORAGE_LIMIT_MB"] = "500"
@@ -393,6 +393,6 @@ def mock_embedding(monkeypatch):
     monkeypatch.setattr("app.integrations.gemini.client.GeminiEmbedding.embed_batch", mock.embed_batch)
     monkeypatch.setattr("app.integrations.gemini.client.GeminiClient.embed_text", mock.embed_text)
     monkeypatch.setattr("app.integrations.gemini.client.GeminiClient.embed_batch", mock.embed_batch)
-    monkeypatch.setattr("app.integrations.embeddings.local.LocalEmbedding.embed", mock.embed)
-    monkeypatch.setattr("app.integrations.embeddings.local.LocalEmbedding.embed_batch", mock.embed_batch)
+    monkeypatch.setattr("app.integrations.embeddings.huggingface.HuggingFaceEmbedding.embed", mock.embed)
+    monkeypatch.setattr("app.integrations.embeddings.huggingface.HuggingFaceEmbedding.embed_batch", mock.embed_batch)
     return mock

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 End-to-end audit and test script for Manan-AI pipeline:
-1. Digital PDF parsing -> Splitter -> all-MiniLM-L6-v2 (384d) Embeddings -> Vector retrieval
-2. Scanned Image / OCR parsing -> Hugging Face OCR (Qwen2.5-VL) -> Splitter -> Embeddings -> Vector retrieval
+1. Digital PDF parsing -> Splitter -> Hugging Face sentence-transformers/all-MiniLM-L6-v2 (384d) Embeddings -> Vector retrieval
+2. Scanned Image / OCR parsing -> Hugging Face OCR (Qwen2.5-VL) -> Splitter -> Hugging Face Embeddings -> Vector retrieval
 3. Vector similarity retrieval & User isolation security verification
 4. Real Gemini Chat & Context-Grounded RAG Generation (gemini-3.6-flash)
 5. Real Ollama Cloud Chat & Context-Grounded RAG Generation (gpt-oss:120b)
@@ -31,7 +31,7 @@ from app.core.config import get_settings
 from app.integrations.documents.pdf_parser import PDFParser
 from app.integrations.documents.image_parser import ImageParser
 from app.integrations.documents.splitter import StructurePreservingSplitter
-from app.integrations.embeddings import LocalEmbedding
+from app.integrations.embeddings import HuggingFaceEmbedding
 from app.integrations.ocr.hf_ocr import HuggingFaceOCRService
 from app.integrations.llm.factory import LLMFactory
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -128,7 +128,7 @@ async def run_e2e_audit():
         print(f"    - Chunks created: {len(chunks)}")
         assert len(chunks) > 0, "Failed to split document"
 
-        embedder = LocalEmbedding()
+        embedder = HuggingFaceEmbedding()
         chunk_texts = [c.text for c in chunks]
         vectors = await embedder.embed_batch(chunk_texts)
         print(f"    - Vectors generated: {len(vectors)}, Dimension: {len(vectors[0])}")

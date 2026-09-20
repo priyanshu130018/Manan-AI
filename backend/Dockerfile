@@ -9,9 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CPU-only PyTorch first using the official PyTorch CPU wheel index
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
 # Optimize layer caching: copy requirements and install dependencies before application code
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt

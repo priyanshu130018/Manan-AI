@@ -29,6 +29,7 @@ if ENV_FILE.exists():
 from PIL import Image, ImageDraw  # type: ignore
 
 from app.core.config import get_settings
+from app.integrations.embeddings.huggingface import HuggingFaceEmbedding
 from app.integrations.llm.factory import LLMFactory
 from app.integrations.ocr.hf_ocr import HuggingFaceOCRService
 
@@ -161,6 +162,40 @@ def test_hf_ocr() -> bool:
         return False
 
 
+async def test_hf_embeddings_async() -> bool:
+    print("Testing Hugging Face Hosted Inference Embeddings...", flush=True)
+    try:
+        settings = get_settings()
+        if not settings.hf_api_token:
+            print("[Hugging Face Embeddings] FAIL - HF_API_TOKEN is not configured.")
+            return False
+
+        embedder = HuggingFaceEmbedding()
+        test_text = "The PostgreSQL database uses pgvector for vector similarity search."
+        vec = await embedder.embed(test_text)
+
+        if len(vec) != 384:
+            print(f"[Hugging Face Embeddings] FAIL - Expected 384 dimensions, got {len(vec)}")
+            return False
+
+        batch_vecs = await embedder.embed_batch([test_text, "Another sample sentence."])
+        if len(batch_vecs) != 2 or len(batch_vecs[0]) != 384 or len(batch_vecs[1]) != 384:
+            print(f"[Hugging Face Embeddings] FAIL - Batch embedding size mismatch")
+            return False
+
+        print(f"[Hugging Face Embeddings] PASS - Generated 384d single and batch vectors (model: {embedder.model_name})")
+        return True
+    except Exception as exc:
+        err_msg = sanitize_message(str(exc))
+        print(f"[Hugging Face Embeddings] FAIL - {err_msg}")
+        return False
+
+
+def test_hf_embeddings() -> bool:
+    import asyncio
+    return asyncio.run(test_hf_embeddings_async())
+
+
 def main() -> int:
     print("=" * 60)
     print("Manan-AI Provider Smoke Test")
@@ -171,14 +206,17 @@ def main() -> int:
     ollama_ok = test_ollama_cloud()
     print("-" * 60)
     hf_ok = test_hf_ocr()
+    print("-" * 60)
+    hf_emb_ok = test_hf_embeddings()
     print("=" * 60)
 
     print("\nResults:")
     print(f"[Gemini] {'PASS' if gemini_ok else 'FAIL'}")
     print(f"[Ollama Cloud] {'PASS' if ollama_ok else 'FAIL'}")
     print(f"[Hugging Face OCR] {'PASS' if hf_ok else 'FAIL'}")
+    print(f"[Hugging Face Embeddings] {'PASS' if hf_emb_ok else 'FAIL'}")
 
-    if gemini_ok and ollama_ok and hf_ok:
+    if gemini_ok and ollama_ok and hf_ok and hf_emb_ok:
         print("\nAll provider tests passed.")
         return 0
     else:

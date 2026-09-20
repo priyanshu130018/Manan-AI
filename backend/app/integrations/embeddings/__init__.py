@@ -1,3 +1,3 @@
-from .local import LocalEmbedding, get_local_embedding
+from .huggingface import HuggingFaceEmbedding, get_huggingface_embedding
 
-__all__ = ["LocalEmbedding", "get_local_embedding"]
+__all__ = ["HuggingFaceEmbedding", "get_huggingface_embedding"]

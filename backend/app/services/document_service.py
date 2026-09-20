@@ -14,11 +14,12 @@ from app.core.exceptions import (
     DocumentNotFoundError,
     DocumentProcessingError,
     DocumentValidationError,
+    EmbeddingError,
 )
 from app.core.logging import LoggerFactory
 from app.integrations.documents.parsers import detect_source_type, get_parser
 from app.integrations.documents.splitter import StructurePreservingSplitter
-from app.integrations.embeddings import LocalEmbedding
+from app.integrations.embeddings import HuggingFaceEmbedding
 from app.integrations.gemini.client import GeminiEmbedding
 from app.integrations.storage.cloudinary_storage import CloudinaryStorage
 from app.models.entities.document import DocumentEntity
@@ -42,18 +43,22 @@ class DocumentService:
         self._vector_repo = vector_repo or VectorRepository()
         self._cloudinary = cloudinary_storage or CloudinaryStorage()
 
-        provider = (self._settings.embedding_provider or "local").lower().strip()
+        provider = (self._settings.embedding_provider or "huggingface").lower().strip()
         if embedding is not None:
             self._embedding = embedding
             self._embedding_provider = "custom"
+        elif provider in ["huggingface", "hf"]:
+            logger.info("Embedding provider: huggingface (%s)", self._settings.embedding_model)
+            self._embedding = HuggingFaceEmbedding()
+            self._embedding_provider = "huggingface"
         elif provider in ["google", "gemini"]:
             logger.info("Embedding provider: Google (%s)", self._settings.embedding_model)
             self._embedding = GeminiEmbedding()
             self._embedding_provider = "google"
         else:
-            logger.info("Embedding provider: local (%s)", self._settings.embedding_model)
-            self._embedding = LocalEmbedding()
-            self._embedding_provider = "local"
+            raise EmbeddingError(
+                f"Unsupported embedding provider '{self._settings.embedding_provider}'. Supported providers are: 'huggingface', 'google'"
+            )
 
         self._splitter = StructurePreservingSplitter(
             chunk_size=self._settings.chunk_size,

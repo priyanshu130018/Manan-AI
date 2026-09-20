@@ -17,4 +17,5 @@ async def health_check():
         "llm_model": settings.llm_model,
         "embedding_provider": settings.embedding_provider,
         "embedding_model": settings.embedding_model,
+        "embedding_dimension": settings.embedding_dimension,
     }

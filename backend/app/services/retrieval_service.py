@@ -3,8 +3,9 @@ import asyncio
 from typing import Optional
 
 from app.core.config import get_settings
+from app.core.exceptions import EmbeddingError
 from app.core.logging import LoggerFactory
-from app.integrations.embeddings import LocalEmbedding
+from app.integrations.embeddings import HuggingFaceEmbedding
 from app.integrations.gemini.client import GeminiEmbedding
 from app.models.entities.chunk import DocumentChunk
 from app.repositories.document_repository import DocumentRepository
@@ -28,12 +29,17 @@ class RetrievalService:
         self._doc_repo = doc_repo or DocumentRepository()
         self._rrf_k = rrf_k
 
+        provider = (settings.embedding_provider or "huggingface").lower().strip()
         if embedding is not None:
             self._embedding = embedding
-        elif (settings.embedding_provider or "local").lower().strip() in ["google", "gemini"]:
+        elif provider in ["huggingface", "hf"]:
+            self._embedding = HuggingFaceEmbedding()
+        elif provider in ["google", "gemini"]:
             self._embedding = GeminiEmbedding()
         else:
-            self._embedding = LocalEmbedding()
+            raise EmbeddingError(
+                f"Unsupported embedding provider '{settings.embedding_provider}'. Supported providers are: 'huggingface', 'google'"
+            )
 
     async def retrieve_vectors(
         self,

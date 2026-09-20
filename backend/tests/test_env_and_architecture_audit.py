@@ -104,6 +104,21 @@ def test_docker_compose_backend_contains_all_settings():
     assert "JWT_SECRET_KEY" not in frontend_section
 
 
+def test_no_local_torch_or_sentence_transformers_dependencies():
+    """Verify that PyTorch and sentence-transformers are completely absent from requirements.txt and Dockerfile."""
+    backend_dir = Path(__file__).resolve().parent.parent
+    requirements_path = backend_dir / "requirements.txt"
+    dockerfile_path = backend_dir / "Dockerfile"
+
+    req_content = requirements_path.read_text(encoding="utf-8")
+    assert "sentence-transformers" not in req_content.lower()
+    assert "torch" not in req_content.lower()
+
+    dockerfile_content = dockerfile_path.read_text(encoding="utf-8")
+    assert "torch" not in dockerfile_content.lower()
+    assert "sentence-transformers" not in dockerfile_content.lower()
+
+
 # ==============================================================================
 # 2. Configuration Validation Tests
 # ==============================================================================
