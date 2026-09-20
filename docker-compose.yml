@@ -4,9 +4,9 @@ services:
     container_name: manan_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-manan_ai}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5433:5432"
     volumes:
@@ -19,7 +19,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: manan_backend
     restart: unless-stopped
@@ -29,48 +29,48 @@ services:
     ports:
       - "8000:8000"
     environment:
-      APP_NAME: ${APP_NAME:-Manan-AI}
-      ENV: ${ENV:-production}
-      HOST: ${HOST:-0.0.0.0}
-      PORT: ${PORT:-8000}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-manan_ai}
+      APP_NAME: ${APP_NAME}
+      ENV: ${ENV}
+      HOST: ${HOST}
+      PORT: ${PORT}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      FRONTEND_URL: ${FRONTEND_URL}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS:-30}
-      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
-      LLM_MODEL: ${LLM_MODEL:-gemini-3.6-flash}
-      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-https://ollama.com}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:120b}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
-      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-manan-ai}
-      CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET:-}
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-384}
-      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
-      TOTAL_STORAGE_LIMIT_MB: ${TOTAL_STORAGE_LIMIT_MB:-500}
-      CHUNK_SIZE: ${CHUNK_SIZE:-500}
-      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-50}
-      HF_API_TOKEN: ${HF_API_TOKEN:-}
-      HF_OCR_MODEL: ${HF_OCR_MODEL:-Qwen/Qwen2.5-VL-72B-Instruct}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
+      SESSION_EXPIRY_DAYS: ${SESSION_EXPIRY_DAYS}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_MODEL: ${LLM_MODEL}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER}
+      CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB}
+      TOTAL_STORAGE_LIMIT_MB: ${TOTAL_STORAGE_LIMIT_MB}
+      CHUNK_SIZE: ${CHUNK_SIZE}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP}
+      HF_API_TOKEN: ${HF_API_TOKEN}
+      HF_OCR_MODEL: ${HF_OCR_MODEL}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     container_name: manan_frontend
     restart: unless-stopped
     depends_on:
@@ -78,7 +78,7 @@ services:
     ports:
       - "5173:80"
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
 
 volumes:
   postgres_data:
